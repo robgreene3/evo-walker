@@ -22,12 +22,25 @@ export interface GeneticAlgorithmConfig {
 export interface EvaluatedController {
   readonly genome: PeriodicControllerGenome;
   readonly fitness: number;
+  readonly lineageId: string;
+}
+
+export interface ControllerLineageRecord {
+  readonly id: string;
+  readonly generation: number;
+  readonly genomeSeed: number;
+  readonly parentIds: readonly string[];
+  readonly eliteCarryover: boolean;
 }
 
 export interface GenerationSummary {
   readonly generation: number;
   readonly bestFitness: number;
+  readonly medianFitness: number;
   readonly meanFitness: number;
+  readonly duplicateRate: number;
+  readonly meanGenotypeDistance: number;
+  readonly championLineageId: string;
   readonly champion: PeriodicControllerGenome;
 }
 
@@ -35,6 +48,12 @@ export interface ControllerEvolutionResult {
   readonly config: GeneticAlgorithmConfig;
   readonly history: readonly GenerationSummary[];
   readonly champion: EvaluatedController;
+  readonly lineage: readonly ControllerLineageRecord[];
+}
+
+interface PopulationMember {
+  readonly genome: PeriodicControllerGenome;
+  readonly lineageId: string;
 }
 
 export type ControllerEvaluator = (genome: PeriodicControllerGenome) => number;
@@ -113,11 +132,11 @@ export function validateGeneticAlgorithmConfig(
 }
 
 function rankPopulation(
-  population: readonly PeriodicControllerGenome[],
+  population: readonly PopulationMember[],
   evaluate: ControllerEvaluator,
 ): EvaluatedController[] {
   return population
-    .map((genome, index) => {
+    .map(({ genome, lineageId }, index) => {
       validateControllerGenome(genome);
       const fitness = evaluate(genome);
       if (!Number.isFinite(fitness)) {
@@ -125,19 +144,21 @@ function rankPopulation(
           `Evaluator returned non-finite fitness at ${index}.`,
         );
       }
-      return { genome, fitness, index };
+      return { genome, fitness, lineageId, index };
     })
     .sort(
       (left, right) => right.fitness - left.fitness || left.index - right.index,
     )
-    .map(({ genome, fitness }) => Object.freeze({ genome, fitness }));
+    .map(({ genome, fitness, lineageId }) =>
+      Object.freeze({ genome, fitness, lineageId }),
+    );
 }
 
 function selectTournament(
   ranked: readonly EvaluatedController[],
   tournamentSize: number,
   prng: Mulberry32,
-): PeriodicControllerGenome {
+): EvaluatedController {
   let winner: EvaluatedController | undefined;
   for (let index = 0; index < tournamentSize; index += 1) {
     const candidate = ranked[Math.floor(prng.next() * ranked.length)];
@@ -151,7 +172,7 @@ function selectTournament(
   if (winner === undefined) {
     throw new Error("Tournament selection did not produce a parent.");
   }
-  return winner.genome;
+  return winner;
 }
 
 function arithmeticGene(
@@ -254,12 +275,61 @@ function summarize(
   if (champion === undefined) {
     throw new Error("Cannot summarize an empty population.");
   }
+  const orderedFitness = ranked
+    .map(({ fitness }) => fitness)
+    .sort((a, b) => a - b);
+  const middle = Math.floor(orderedFitness.length / 2);
+  const lower = orderedFitness[middle - 1] ?? orderedFitness[middle];
+  const upper = orderedFitness[middle];
+  if (lower === undefined || upper === undefined) {
+    throw new Error("Cannot summarize missing fitness values.");
+  }
+  const genomeKeys = ranked.map(({ genome }) =>
+    genome.joints
+      .flatMap(({ amplitude, frequencyHz, phaseRadians, offset }) => [
+        amplitude,
+        frequencyHz,
+        phaseRadians,
+        offset,
+      ])
+      .join(","),
+  );
+  let pairDistance = 0;
+  let pairCount = 0;
+  for (let left = 0; left < ranked.length; left += 1) {
+    for (let right = left + 1; right < ranked.length; right += 1) {
+      const leftGenome = ranked[left]?.genome;
+      const rightGenome = ranked[right]?.genome;
+      if (leftGenome === undefined || rightGenome === undefined) continue;
+      let scalarDistance = 0;
+      leftGenome.joints.forEach((joint, jointIndex) => {
+        const other = rightGenome.joints[jointIndex];
+        if (other === undefined)
+          throw new Error("Genome length changed during summary.");
+        scalarDistance += Math.abs(joint.amplitude - other.amplitude) / 1.8;
+        scalarDistance +=
+          Math.abs(joint.frequencyHz - other.frequencyHz) / 2.25;
+        const phaseDifference = Math.abs(
+          joint.phaseRadians - other.phaseRadians,
+        );
+        scalarDistance +=
+          Math.min(phaseDifference, TAU - phaseDifference) / Math.PI;
+        scalarDistance += Math.abs(joint.offset - other.offset) / 0.8;
+      });
+      pairDistance += scalarDistance / genomeScalarCount();
+      pairCount += 1;
+    }
+  }
   return Object.freeze({
     generation,
     bestFitness: champion.fitness,
+    medianFitness: (lower + upper) / 2,
     meanFitness:
       ranked.reduce((sum, candidate) => sum + candidate.fitness, 0) /
       ranked.length,
+    duplicateRate: 1 - new Set(genomeKeys).size / ranked.length,
+    meanGenotypeDistance: pairCount === 0 ? 0 : pairDistance / pairCount,
+    championLineageId: champion.lineageId,
     champion: champion.genome,
   });
 }
@@ -270,27 +340,62 @@ export function evolveControllerPopulation(
 ): ControllerEvolutionResult {
   validateGeneticAlgorithmConfig(config);
   const prng = new Mulberry32(config.seed);
-  let population = Array.from({ length: config.populationSize }, () =>
-    createSeededController(nextSeed(prng)),
-  );
+  const lineage: ControllerLineageRecord[] = [];
+  let population = Array.from({ length: config.populationSize }, (_, index) => {
+    const genome = createSeededController(nextSeed(prng));
+    const lineageId = `g0-i${index}`;
+    lineage.push(
+      Object.freeze({
+        id: lineageId,
+        generation: 0,
+        genomeSeed: genome.seed,
+        parentIds: Object.freeze([]),
+        eliteCarryover: false,
+      }),
+    );
+    return { genome, lineageId };
+  });
   let ranked = rankPopulation(population, evaluate);
   const history: GenerationSummary[] = [summarize(0, ranked)];
 
   for (let generation = 1; generation <= config.generations; generation += 1) {
-    const nextPopulation = ranked
+    const nextPopulation: PopulationMember[] = ranked
       .slice(0, config.eliteCount)
-      .map(({ genome }) => genome);
+      .map((elite, index) => {
+        const lineageId = `g${generation}-i${index}`;
+        lineage.push(
+          Object.freeze({
+            id: lineageId,
+            generation,
+            genomeSeed: elite.genome.seed,
+            parentIds: Object.freeze([elite.lineageId]),
+            eliteCarryover: true,
+          }),
+        );
+        return { genome: elite.genome, lineageId };
+      });
     while (nextPopulation.length < config.populationSize) {
       const left = selectTournament(ranked, config.tournamentSize, prng);
       const right = selectTournament(ranked, config.tournamentSize, prng);
+      const lineageId = `g${generation}-i${nextPopulation.length}`;
       const child = crossover(
-        left,
-        right,
+        left.genome,
+        right.genome,
         nextSeed(prng),
         config.crossoverRate,
         prng,
       );
-      nextPopulation.push(mutate(child, config, prng));
+      const genome = mutate(child, config, prng);
+      lineage.push(
+        Object.freeze({
+          id: lineageId,
+          generation,
+          genomeSeed: genome.seed,
+          parentIds: Object.freeze([left.lineageId, right.lineageId]),
+          eliteCarryover: false,
+        }),
+      );
+      nextPopulation.push({ genome, lineageId });
     }
     population = nextPopulation;
     ranked = rankPopulation(population, evaluate);
@@ -305,6 +410,7 @@ export function evolveControllerPopulation(
     config: Object.freeze({ ...config }),
     history: Object.freeze(history),
     champion,
+    lineage: Object.freeze(lineage),
   });
 }
 

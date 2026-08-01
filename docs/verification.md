@@ -247,6 +247,25 @@ Accepted post-Slice-3 canonical single-episode outcomes (each executed twice exa
 | 2026 | -1.5993009176178334 | `5c0edf81`           |
 | 7311 |  -0.655646880559507 | `a73886ca`           |
 
+## Cycle 3c: lineage and diversity completion
+
+- Testable hypothesis: recording one immutable birth/carryover record per population member
+  plus median fitness, duplicate rate, and normalized genotype distance makes evolution
+  inspectable without consuming PRNG values or changing selection outcomes.
+- Predicted result: lineage contains `populationSize * (generations + 1)` unique records;
+  every non-initial parent resolves exactly one generation backward; elite carryovers are
+  explicit; telemetry is finite and bounded; repeated evolution remains exact; canonical
+  30-generation fitness outcomes remain unchanged.
+- Guardrails: no new random draws, operator changes, morphology changes, worker/UI code, or
+  benchmark threshold changes.
+- Falsifier: missing/forward parent, duplicate lineage ID, telemetry outside bounds,
+  repeated-seed mismatch, or canonical evolution drift.
+- Unit observation: all ancestry and telemetry invariants pass for a deterministic
+  eight-generation test evolution.
+- Benchmark observation: seeds 7, 42, and 99 retained their exact pre-lineage initial/final
+  fitness, progress, improvement, and champion checksums; the repeated seed remained exact.
+- Decision: **KEEP**. Slice 3 is complete with inspectable lineage and diversity telemetry.
+
 ## Cycle 4: worker evaluation boundary
 
 - Testable hypothesis: the same typed genome batch evaluated in a separate worker thread

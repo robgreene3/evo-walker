@@ -77,6 +77,44 @@ describe("controller genetic algorithm", () => {
     }
   });
 
+  it("records complete ancestry and bounded diversity telemetry", () => {
+    const result = evolveControllerPopulation(TEST_CONFIG, analyticFitness);
+    const records = new Map(
+      result.lineage.map((record) => [record.id, record]),
+    );
+
+    expect(result.lineage).toHaveLength(
+      TEST_CONFIG.populationSize * (TEST_CONFIG.generations + 1),
+    );
+    expect(records.size).toBe(result.lineage.length);
+    expect(result.champion.lineageId).toBe(
+      result.history.at(-1)?.championLineageId,
+    );
+    expect(
+      result.lineage.filter(({ eliteCarryover }) => eliteCarryover),
+    ).toHaveLength(TEST_CONFIG.eliteCount * TEST_CONFIG.generations);
+
+    for (const record of result.lineage) {
+      expect(record.parentIds).toHaveLength(
+        record.generation === 0 ? 0 : record.eliteCarryover ? 1 : 2,
+      );
+      for (const parentId of record.parentIds) {
+        const parent = records.get(parentId);
+        expect(parent).toBeDefined();
+        expect(parent?.generation).toBe(record.generation - 1);
+      }
+    }
+    for (const summary of result.history) {
+      expect(summary.medianFitness).toBeGreaterThanOrEqual(
+        Number.NEGATIVE_INFINITY,
+      );
+      expect(summary.duplicateRate).toBeGreaterThanOrEqual(0);
+      expect(summary.duplicateRate).toBeLessThanOrEqual(1);
+      expect(summary.meanGenotypeDistance).toBeGreaterThanOrEqual(0);
+      expect(summary.meanGenotypeDistance).toBeLessThanOrEqual(1);
+    }
+  });
+
   it("rejects invalid configuration and evaluator output", () => {
     expect(() => {
       validateGeneticAlgorithmConfig({ ...TEST_CONFIG, eliteCount: 10 });

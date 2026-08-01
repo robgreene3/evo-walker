@@ -303,6 +303,6 @@ Populate this section after inspecting or creating the repository. Keep only sta
   protected numbered brief files and `docs/brief/PACKAGE-README.md`.
 - Supported browsers/platforms: current verified simulation platform is macOS 26.5.2 arm64
   with Node 24.14.0; browser support is not claimed before Slice 5 evidence.
-- Project-specific done gate: Slices 1–2 pass; Slice 3 operator/improvement foundations and
-  Slice 4 direct/worker equivalence pass. Lineage/diversity and browser responsiveness remain
-  before those slices close; the full MVP remains governed by the definition above.
+- Project-specific done gate: Slices 1–3 pass; Slice 4 direct/worker equivalence passes and
+  browser responsiveness remains before it closes. The full MVP remains governed by the
+  definition above.

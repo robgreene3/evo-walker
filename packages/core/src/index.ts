@@ -18,6 +18,7 @@ export {
 export type {
   ControllerEvaluator,
   ControllerEvolutionResult,
+  ControllerLineageRecord,
   EvaluatedController,
   GenerationSummary,
   GeneticAlgorithmConfig,
