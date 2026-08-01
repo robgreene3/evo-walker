@@ -34,6 +34,17 @@ The Slice 3 GA uses the same Mulberry32 stream for initialization, tournament se
 arithmetic crossover, and bounded Gaussian mutation. The benchmark repeats one complete
 30-generation run exactly and checks improvement across seeds 7, 42, and 99.
 
+The incremental worker session consumes the same random draws in the same order as the direct
+GA wrapper. The canonical seed-42 browser run reproduced aggregate fitness
+`1.8269563074123853` at generation 30. Same-build worker/direct equality is exact; the public
+cross-browser numerical policy remains absolute tolerance `1e-9` because `Math.sin()` and host
+floating-point behavior have not been exhaustively compared across supported browsers.
+
+Version-1 JSON serialization preserves stored JavaScript numbers and checksums exactly. This is
+storage equivalence, not a claim that a future physics or schema version will reproduce the same
+world. Binding, engine, build, schema, timestep, substeps, seed, fitness, and checksum remain in
+the document so drift is visible.
+
 ## Fitness
 
 `fitness = forward progress + upright bonus - fall penalty - actuation energy penalty - lateral drift penalty - invalid penalty`

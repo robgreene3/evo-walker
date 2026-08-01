@@ -1,8 +1,10 @@
 import { parentPort } from "node:worker_threads";
 import { evaluateBatch } from "./evaluate-batch.js";
+import { evolveExperiment } from "./evolve-experiment.js";
 import {
   WORKER_PROTOCOL_VERSION,
   type BatchEvaluationRequest,
+  type StartEvolutionRequest,
   type WorkerRequest,
   type WorkerResponse,
 } from "./protocol.js";
@@ -11,21 +13,43 @@ if (parentPort === null)
   throw new Error("Node worker entry requires a parent message port.");
 let activeRequestId: string | null = null;
 let cancellationRequested = false;
+let pauseRequested = false;
+let pausedGeneration = 0;
+let releasePause: (() => void) | null = null;
 function post(message: WorkerResponse): void {
   parentPort?.postMessage(message);
 }
-async function run(request: BatchEvaluationRequest): Promise<void> {
+function begin(requestId: string): boolean {
   if (activeRequestId !== null) {
     post({
       kind: "error",
       protocolVersion: WORKER_PROTOCOL_VERSION,
-      requestId: request.requestId,
+      requestId,
       message: "Worker already has an active request.",
     });
-    return;
+    return false;
   }
-  activeRequestId = request.requestId;
+  activeRequestId = requestId;
   cancellationRequested = false;
+  pauseRequested = false;
+  return true;
+}
+function finish(): void {
+  activeRequestId = null;
+  cancellationRequested = false;
+  pauseRequested = false;
+  releasePause = null;
+}
+function reportError(requestId: string, error: unknown): void {
+  post({
+    kind: "error",
+    protocolVersion: WORKER_PROTOCOL_VERSION,
+    requestId,
+    message: error instanceof Error ? error.message : "Unknown worker error.",
+  });
+}
+async function runBatch(request: BatchEvaluationRequest): Promise<void> {
+  if (!begin(request.requestId)) return;
   try {
     post(
       await evaluateBatch(request, {
@@ -38,21 +62,77 @@ async function run(request: BatchEvaluationRequest): Promise<void> {
       }),
     );
   } catch (error) {
-    post({
-      kind: "error",
-      protocolVersion: WORKER_PROTOCOL_VERSION,
-      requestId: request.requestId,
-      message: error instanceof Error ? error.message : "Unknown worker error.",
-    });
+    reportError(request.requestId, error);
   } finally {
-    activeRequestId = null;
-    cancellationRequested = false;
+    finish();
+  }
+}
+async function runEvolution(request: StartEvolutionRequest): Promise<void> {
+  if (!begin(request.requestId)) return;
+  try {
+    post(
+      await evolveExperiment(request, {
+        isCancelled: () => cancellationRequested,
+        onProgress: (message) => {
+          pausedGeneration = message.snapshot.generation;
+          post(message);
+        },
+        waitWhilePaused: async () => {
+          if (!pauseRequested) return;
+          post({
+            kind: "evolution-paused",
+            protocolVersion: WORKER_PROTOCOL_VERSION,
+            requestId: request.requestId,
+            generation: pausedGeneration,
+          });
+          await new Promise<void>((resolve) => {
+            releasePause = resolve;
+          });
+          releasePause = null;
+          if (!cancellationRequested) {
+            post({
+              kind: "evolution-resumed",
+              protocolVersion: WORKER_PROTOCOL_VERSION,
+              requestId: request.requestId,
+              generation: pausedGeneration,
+            });
+          }
+        },
+        yieldControl: () =>
+          new Promise((resolve) => {
+            setTimeout(resolve, 0);
+          }),
+      }),
+    );
+  } catch (error) {
+    reportError(request.requestId, error);
+  } finally {
+    finish();
   }
 }
 parentPort.on("message", (request: WorkerRequest) => {
-  if (request.kind === "cancel") {
-    if (request.requestId === activeRequestId) cancellationRequested = true;
-  } else {
-    void run(request);
+  if (request.requestId !== activeRequestId && activeRequestId !== null) {
+    if (request.kind === "evaluate") void runBatch(request);
+    if (request.kind === "evolve") void runEvolution(request);
+    return;
+  }
+  switch (request.kind) {
+    case "cancel":
+      cancellationRequested = true;
+      releasePause?.();
+      break;
+    case "pause":
+      pauseRequested = true;
+      break;
+    case "resume":
+      pauseRequested = false;
+      releasePause?.();
+      break;
+    case "evaluate":
+      void runBatch(request);
+      break;
+    case "evolve":
+      void runEvolution(request);
+      break;
   }
 });

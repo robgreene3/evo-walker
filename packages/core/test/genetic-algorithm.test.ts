@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   CONTROLLER_BOUNDS,
+  ControllerEvolutionSession,
   DEFAULT_GA_CONFIG,
   evolveControllerPopulation,
   genomeScalarCount,
@@ -41,6 +42,33 @@ describe("controller genetic algorithm", () => {
         first.history[index - 1]?.bestFitness ?? Number.NEGATIVE_INFINITY,
       );
     }
+  });
+
+  it("advances one generation at a time without changing the result", () => {
+    const expected = evolveControllerPopulation(TEST_CONFIG, analyticFitness);
+    const session = new ControllerEvolutionSession(
+      TEST_CONFIG,
+      analyticFitness,
+    );
+
+    expect(session.snapshot()).toMatchObject({
+      generation: 0,
+      complete: false,
+    });
+    while (!session.snapshot().complete) {
+      session.advanceGeneration();
+    }
+
+    const snapshot = session.snapshot();
+    expect(snapshot.generation).toBe(TEST_CONFIG.generations);
+    expect(snapshot.complete).toBe(true);
+    expect({
+      config: snapshot.config,
+      history: snapshot.history,
+      champion: snapshot.champion,
+      lineage: snapshot.lineage,
+    }).toEqual(expected);
+    expect(() => session.advanceGeneration()).toThrow(/already complete/u);
   });
 
   it("keeps every evolved scalar finite and bounded", () => {

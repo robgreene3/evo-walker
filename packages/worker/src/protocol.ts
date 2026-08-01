@@ -1,5 +1,9 @@
-import type { PeriodicControllerGenome } from "@evowalker/core";
-import type { FitnessComponents } from "@evowalker/sim";
+import type {
+  ControllerEvolutionSnapshot,
+  GeneticAlgorithmConfig,
+  PeriodicControllerGenome,
+} from "@evowalker/core";
+import type { EpisodeResult, FitnessComponents } from "@evowalker/sim";
 
 export const WORKER_PROTOCOL_VERSION = 1 as const;
 export interface BatchEvaluationRequest {
@@ -13,7 +17,28 @@ export interface CancelEvaluationRequest {
   readonly protocolVersion: number;
   readonly requestId: string;
 }
-export type WorkerRequest = BatchEvaluationRequest | CancelEvaluationRequest;
+export interface StartEvolutionRequest {
+  readonly kind: "evolve";
+  readonly protocolVersion: number;
+  readonly requestId: string;
+  readonly config: GeneticAlgorithmConfig;
+}
+export interface PauseEvolutionRequest {
+  readonly kind: "pause";
+  readonly protocolVersion: number;
+  readonly requestId: string;
+}
+export interface ResumeEvolutionRequest {
+  readonly kind: "resume";
+  readonly protocolVersion: number;
+  readonly requestId: string;
+}
+export type WorkerRequest =
+  | BatchEvaluationRequest
+  | CancelEvaluationRequest
+  | StartEvolutionRequest
+  | PauseEvolutionRequest
+  | ResumeEvolutionRequest;
 export interface BatchEvaluationValue {
   readonly index: number;
   readonly genomeSeed: number;
@@ -47,5 +72,46 @@ export interface ErrorMessage {
   readonly requestId: string;
   readonly message: string;
 }
+export interface EvolutionProgressMessage {
+  readonly kind: "evolution-progress";
+  readonly protocolVersion: typeof WORKER_PROTOCOL_VERSION;
+  readonly requestId: string;
+  readonly snapshot: ControllerEvolutionSnapshot;
+  readonly championEpisode: EpisodeResult;
+}
+export interface EvolutionPausedMessage {
+  readonly kind: "evolution-paused";
+  readonly protocolVersion: typeof WORKER_PROTOCOL_VERSION;
+  readonly requestId: string;
+  readonly generation: number;
+}
+export interface EvolutionResumedMessage {
+  readonly kind: "evolution-resumed";
+  readonly protocolVersion: typeof WORKER_PROTOCOL_VERSION;
+  readonly requestId: string;
+  readonly generation: number;
+}
+export interface EvolutionCompletedMessage {
+  readonly kind: "evolution-completed";
+  readonly protocolVersion: typeof WORKER_PROTOCOL_VERSION;
+  readonly requestId: string;
+  readonly snapshot: ControllerEvolutionSnapshot;
+  readonly championEpisode: EpisodeResult;
+}
+export interface EvolutionCancelledMessage {
+  readonly kind: "evolution-cancelled";
+  readonly protocolVersion: typeof WORKER_PROTOCOL_VERSION;
+  readonly requestId: string;
+  readonly snapshot: ControllerEvolutionSnapshot;
+  readonly championEpisode: EpisodeResult;
+}
 export type WorkerResponse =
-  ProgressMessage | CompletedMessage | CancelledMessage | ErrorMessage;
+  | ProgressMessage
+  | CompletedMessage
+  | CancelledMessage
+  | ErrorMessage
+  | EvolutionProgressMessage
+  | EvolutionPausedMessage
+  | EvolutionResumedMessage
+  | EvolutionCompletedMessage
+  | EvolutionCancelledMessage;

@@ -2,11 +2,14 @@
   "extends": "./tsconfig.base.json",
   "compilerOptions": {
     "noEmit": true,
+    "jsx": "react-jsx",
+    "types": ["node", "vite/client"],
     "paths": {
       "@evowalker/core": ["./packages/core/src/index.ts"],
       "@evowalker/sim": ["./packages/sim/src/index.ts"],
-      "@evowalker/worker": ["./packages/worker/src/index.ts"]
+      "@evowalker/worker": ["./packages/worker/src/index.ts"],
+      "@evowalker/worker/protocol": ["./packages/worker/src/protocol.ts"]
     }
   },
-  "include": ["*.ts", "packages/**/*.ts"]
+  "include": ["*.ts", "packages/**/*.ts", "apps/**/*.ts", "apps/**/*.tsx"]
 }

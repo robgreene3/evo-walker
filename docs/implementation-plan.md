@@ -10,14 +10,15 @@ Status as of 2026-08-01:
 3. **Evolution engine — complete.** Seeded controller-only GA operators pass deterministic
    invariant and 30-generation improvement gates for three canonical seeds; immutable
    lineage plus median-fitness, duplicate-rate, and genotype-distance telemetry are recorded.
-4. **Worker evaluation boundary — integration pending.** Typed direct and Node worker
+4. **Worker evaluation boundary — complete.** Typed direct and Node worker
    evaluation match exactly; progress, cancellation, error propagation, and cleanup are
    tested. Browser responsiveness and cancellation remain part of the Slice 5 integration
    gate.
-5. **Critical UI journey — next.** Add React and Three.js, integrate the browser worker, and
-   close the Slice 4 responsiveness/cancellation gate through observed interaction.
-6. **Persistence and recovery — pending.** Add a validated versioned experiment schema.
-7. **Release verification — pending.** Complete browser, accessibility, performance,
-   advisory, and recovery gates.
+5. **Critical UI journey — complete with browser evidence.** React and Three.js integrate the
+   browser worker; the observed default journey, responsive layouts, and cancellation gate pass.
+6. **Persistence and recovery — complete.** Versioned local and JSON state is strictly validated.
+7. **Release verification — complete.** Automated Chromium journeys, accessibility and responsive
+   behavior, performance evidence, production advisory, integrity, and recovery gates pass.
 
-Morphology evolution cannot begin before all seven MVP slices pass.
+All seven controller-first MVP slices pass. Morphology evolution remains out of scope and requires
+separate explicit authorization.

@@ -51,6 +51,11 @@ export interface ControllerEvolutionResult {
   readonly lineage: readonly ControllerLineageRecord[];
 }
 
+export interface ControllerEvolutionSnapshot extends ControllerEvolutionResult {
+  readonly generation: number;
+  readonly complete: boolean;
+}
+
 interface PopulationMember {
   readonly genome: PeriodicControllerGenome;
   readonly lineageId: string;
@@ -334,36 +339,53 @@ function summarize(
   });
 }
 
-export function evolveControllerPopulation(
-  config: GeneticAlgorithmConfig,
-  evaluate: ControllerEvaluator,
-): ControllerEvolutionResult {
-  validateGeneticAlgorithmConfig(config);
-  const prng = new Mulberry32(config.seed);
-  const lineage: ControllerLineageRecord[] = [];
-  let population = Array.from({ length: config.populationSize }, (_, index) => {
-    const genome = createSeededController(nextSeed(prng));
-    const lineageId = `g0-i${index}`;
-    lineage.push(
-      Object.freeze({
-        id: lineageId,
-        generation: 0,
-        genomeSeed: genome.seed,
-        parentIds: Object.freeze([]),
-        eliteCarryover: false,
-      }),
-    );
-    return { genome, lineageId };
-  });
-  let ranked = rankPopulation(population, evaluate);
-  const history: GenerationSummary[] = [summarize(0, ranked)];
+export class ControllerEvolutionSession {
+  readonly #config: GeneticAlgorithmConfig;
+  readonly #evaluate: ControllerEvaluator;
+  readonly #prng: Mulberry32;
+  readonly #lineage: ControllerLineageRecord[] = [];
+  readonly #history: GenerationSummary[];
+  #ranked: EvaluatedController[];
 
-  for (let generation = 1; generation <= config.generations; generation += 1) {
-    const nextPopulation: PopulationMember[] = ranked
-      .slice(0, config.eliteCount)
+  public constructor(
+    config: GeneticAlgorithmConfig,
+    evaluate: ControllerEvaluator,
+  ) {
+    validateGeneticAlgorithmConfig(config);
+    this.#config = Object.freeze({ ...config });
+    this.#evaluate = evaluate;
+    this.#prng = new Mulberry32(config.seed);
+    const population = Array.from(
+      { length: config.populationSize },
+      (_, index) => {
+        const genome = createSeededController(nextSeed(this.#prng));
+        const lineageId = `g0-i${index}`;
+        this.#lineage.push(
+          Object.freeze({
+            id: lineageId,
+            generation: 0,
+            genomeSeed: genome.seed,
+            parentIds: Object.freeze([]),
+            eliteCarryover: false,
+          }),
+        );
+        return { genome, lineageId };
+      },
+    );
+    this.#ranked = rankPopulation(population, evaluate);
+    this.#history = [summarize(0, this.#ranked)];
+  }
+
+  public advanceGeneration(): GenerationSummary {
+    const generation = this.#history.length;
+    if (generation > this.#config.generations) {
+      throw new Error("Evolution is already complete.");
+    }
+    const nextPopulation: PopulationMember[] = this.#ranked
+      .slice(0, this.#config.eliteCount)
       .map((elite, index) => {
         const lineageId = `g${generation}-i${index}`;
-        lineage.push(
+        this.#lineage.push(
           Object.freeze({
             id: lineageId,
             generation,
@@ -374,19 +396,27 @@ export function evolveControllerPopulation(
         );
         return { genome: elite.genome, lineageId };
       });
-    while (nextPopulation.length < config.populationSize) {
-      const left = selectTournament(ranked, config.tournamentSize, prng);
-      const right = selectTournament(ranked, config.tournamentSize, prng);
+    while (nextPopulation.length < this.#config.populationSize) {
+      const left = selectTournament(
+        this.#ranked,
+        this.#config.tournamentSize,
+        this.#prng,
+      );
+      const right = selectTournament(
+        this.#ranked,
+        this.#config.tournamentSize,
+        this.#prng,
+      );
       const lineageId = `g${generation}-i${nextPopulation.length}`;
       const child = crossover(
         left.genome,
         right.genome,
-        nextSeed(prng),
-        config.crossoverRate,
-        prng,
+        nextSeed(this.#prng),
+        this.#config.crossoverRate,
+        this.#prng,
       );
-      const genome = mutate(child, config, prng);
-      lineage.push(
+      const genome = mutate(child, this.#config, this.#prng);
+      this.#lineage.push(
         Object.freeze({
           id: lineageId,
           generation,
@@ -397,21 +427,42 @@ export function evolveControllerPopulation(
       );
       nextPopulation.push({ genome, lineageId });
     }
-    population = nextPopulation;
-    ranked = rankPopulation(population, evaluate);
-    history.push(summarize(generation, ranked));
+    this.#ranked = rankPopulation(nextPopulation, this.#evaluate);
+    const summary = summarize(generation, this.#ranked);
+    this.#history.push(summary);
+    return summary;
   }
 
-  const champion = ranked[0];
-  if (champion === undefined) {
-    throw new Error("Evolution did not produce a champion.");
+  public snapshot(): ControllerEvolutionSnapshot {
+    const champion = this.#ranked[0];
+    if (champion === undefined) {
+      throw new Error("Evolution did not produce a champion.");
+    }
+    const generation = this.#history.length - 1;
+    return Object.freeze({
+      config: this.#config,
+      generation,
+      complete: generation === this.#config.generations,
+      history: Object.freeze([...this.#history]),
+      champion,
+      lineage: Object.freeze([...this.#lineage]),
+    });
   }
-  return Object.freeze({
-    config: Object.freeze({ ...config }),
-    history: Object.freeze(history),
-    champion,
-    lineage: Object.freeze(lineage),
-  });
+
+  public complete(): ControllerEvolutionResult {
+    while (this.#history.length - 1 < this.#config.generations) {
+      this.advanceGeneration();
+    }
+    const { config, history, champion, lineage } = this.snapshot();
+    return Object.freeze({ config, history, champion, lineage });
+  }
+}
+
+export function evolveControllerPopulation(
+  config: GeneticAlgorithmConfig,
+  evaluate: ControllerEvaluator,
+): ControllerEvolutionResult {
+  return new ControllerEvolutionSession(config, evaluate).complete();
 }
 
 export function genomeScalarCount(): number {

@@ -1,17 +1,21 @@
 # Recovery and rollback
 
-No experiment files, schema migrations, or user data exist in Slices 1–3.
-
-- The original numbered brief artifacts remain byte-identical at the repository root.
-- The package-era README is preserved byte-identically in
-  `docs/brief/PACKAGE-README.md`.
-- `node_modules/`, `.pnpm-store/`, and `packages/*/dist/` are generated and excluded from
-  Git; regenerate them with `pnpm install --frozen-lockfile` and `pnpm build`.
-- All implementation work is currently uncommitted in the newly initialized repository.
-  Review and create the first repository commit before Slice 4 so later changes have a
-  clean rollback boundary.
-- If a future dependency update changes episode outcomes, retain the lockfile, compare
-  the five canonical checksums, and revert the dependency/lockfile change if the drift
-  is unexplained. Do not redefine the tolerance after observing drift.
-- Import recovery and schema migration policy are intentionally deferred until the
-  persistence slice; there is currently nothing to migrate.
+- The original numbered brief artifacts and `docs/brief/PACKAGE-README.md` remain byte-identical.
+- The verified repository baseline is commit `547647c`; deterministic lineage completion is
+  commit `68bf8fe`. The browser MVP is isolated on `feat/controller-first-mvp`; its release
+  commit contains the UI, worker integration, persistence, documentation, and verification
+  evidence as one reviewable controller-first change.
+- `node_modules/`, `.pnpm-store/`, build outputs, Playwright reports, and test results are
+  generated and ignored. Regenerate them with `pnpm install --frozen-lockfile` and `pnpm build`.
+- Browser local saves use `evowalker:experiment:v1`. Export a JSON copy before clearing site
+  data or changing browsers. Load/import validates before replacement, so a rejected file leaves
+  the current in-memory champion intact.
+- Version 1 has no implicit migration. Keep the original export, use a build that supports its
+  declared schema, or add a tested pure migration in a later schema version.
+- If a dependency update changes canonical outcomes, retain the current lockfile, compare the
+  five episode checksums and three evolution seeds, and revert unexplained drift. Never redefine
+  tolerance after observing the result.
+- If a worker fails, use “Start a fresh experiment”; the seed/configuration remain visible.
+  A cancelled run retains its last complete generation for inspection, local save, or export.
+- Mid-generation continuation is not recoverable in schema version 1. Restart from the saved seed
+  and configuration instead of presenting an approximate continuation as equivalent.

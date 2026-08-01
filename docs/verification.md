@@ -121,8 +121,8 @@ pnpm licenses list --prod / --dev
 - pnpm blocked the `esbuild@0.28.1` lifecycle script. The current TypeScript build and
   Vitest suite pass without approving it. Reassess only if the later browser bundle
   demonstrably requires that script.
-- No browser, worker, UI, accessibility, or persistence claim has been tested; those belong
-  to later ordered slices.
+- At this Cycle 1 checkpoint, no browser, worker, UI, accessibility, or persistence claim
+  had been tested; those claims are verified in the later ordered slices below.
 
 ## Reverted Cycle 3 experiment: GA readiness
 
@@ -310,3 +310,107 @@ The built seed-7311 episode then reproduced checksum `a73886ca` on replay, retur
 invalid reason, and reported all component fitness values. A recursive source scan found no
 `Math.random()` calls under `packages/`. The four protected brief hashes still match the
 Cycle 1 values exactly. The Rapier initializer warning documented above remains visible.
+
+## Cycle 5: browser critical journey (predeclared)
+
+- Testable hypothesis: advancing the unchanged deterministic GA one complete generation at
+  a time inside a browser worker keeps the main thread interactive while exposing the current
+  champion, metrics, component fitness, genome, and ancestry through a single-creature UI.
+- Predicted result: the default seed-42, population-12, 30-generation experiment supports
+  start, pause, resume, cancellation, restart, replay speed, and camera interaction; pause and
+  cancellation settle at a generation boundary; the final champion matches direct evolution;
+  and no runtime or console error occurs at 1440 by 900 or 390 by 844 pixels.
+- Accessibility gate: the complete journey works by keyboard and pointer, controls have visible
+  focus and accessible names, status changes use a live region, logical reading order survives
+  the mobile layout, and reduced-motion preference stops automatic replay motion.
+- State gate: initial, loading, no-champion, running, paused, completed, cancelled, and error
+  states are explicit and recoverable. Only one champion episode is rendered; evaluated
+  populations are never rendered.
+- Guardrails: no morphology, physics, fitness, GA operator, canonical seed, threshold, backend,
+  account, telemetry, or persistence work; persistence remains Slice 6.
+- Falsifier: a frozen primary control, request cross-talk, cancellation beyond one completed
+  generation, direct/worker result drift, inaccessible critical control, missing state, layout
+  obstruction, or browser console/runtime error.
+- Initial browser failure: both development and production remained in `loading` without a
+  console error because the static worker dependency graph held message-handler registration
+  behind Rapier's top-level WASM initialization.
+- Bounded revision: register the protocol handler in a 1.53 kB worker entry and dynamically load
+  batch/evolution plus the deterministic WASM only after receiving a request. No physics, GA,
+  seed, threshold, or UI behavior changed.
+- Canonical observation: the default seed-42, population-12 run completed generation 30 in the
+  production browser with aggregate fitness `1.82696`, matching the direct canonical value
+  `1.8269563074123853`; no browser warning or error was captured.
+- Interaction observation: a population-64 run paused at complete generation 12 and remained
+  there for a one-second observation, resumed to generation 13, then cancelled with generation
+  20 observed immediately before the action and generation 21 retained afterward. Restart had
+  already recovered from a prior completed run.
+- Layout observation: the 1440 by 900 desktop layout preserved controls, champion, and metrics.
+  At 390 by 844, viewport, body, and document widths were all exactly 390 pixels; the controls,
+  essential metrics, and champion panel remained in logical vertical order without horizontal
+  overflow. The reduced-motion code path stops replay on the terminal stored frame.
+- Automation observation: the authored three-test Playwright suite executed against the
+  production build in Chromium. All three tests passed in 21.3 seconds and passed again in
+  15.5 seconds inside the consolidated release pipeline, covering keyboard
+  start/focus, completion, pause/resume/cancel, persistence recovery, unsupported import,
+  mobile width, reduced motion, and runtime errors.
+
+## Cycle 6: persistence and recovery (predeclared)
+
+- Testable hypothesis: a strict version-1 JSON document containing the complete inspectable
+  generation snapshot and champion episode can round-trip locally without numerical drift.
+- Predicted result: local save/load and JSON export/import restore configuration, PRNG identity,
+  physics provenance, history genomes, population champion, lineage, component fitness, frames,
+  invalid reason, and checksum exactly; corrupt, oversized, non-finite, inconsistent, and
+  unsupported-version inputs fail with recovery guidance while leaving the current experiment
+  untouched.
+- Compatibility policy: version 1 accepts only build `0.0.0`; additive or breaking schema
+  changes require a new version and an explicit pure migration. Unknown versions are rejected,
+  never guessed.
+- Guardrails: restored snapshots are inspectable and restartable, not resumable mid-evolution;
+  no arbitrary expressions, backend, sync, account, telemetry, morphology, or migration is added.
+- Falsifier: validation after state replacement, silent coercion, non-finite data acceptance,
+  checksum/fitness drift, unsupported-version acceptance, storage failure without guidance, or
+  an import exceeding the declared byte limit.
+- Automated observation: the benchmark document serialized and parsed with exact equality,
+  including final checksum; the parsed root and lineage were frozen. Invalid JSON, schema 99,
+  inconsistent champion fitness, and 5,000,001-byte input were rejected.
+- Browser observation: a completed seed-42 generation-1 run was saved locally, a seed-7 run
+  replaced it, and load restored seed 42 plus aggregate fitness `-0.42446` exactly. Importing
+  schema 99 changed status to error but retained that same champion fitness and gave explicit
+  version/recovery guidance. No console warning or error was captured.
+- Decision: **KEEP**. Slice 6 meets the inspectable restore contract. Mid-evolution continuation
+  is explicitly excluded from version 1 and documented as a deterministic restart boundary.
+
+## Release-candidate verification
+
+Node 24.14.0 with pnpm 11.9.0 produced:
+
+```text
+format: PASS; all matched files use Prettier style
+lint: PASS; no ESLint diagnostics
+typecheck: PASS; no strict TypeScript diagnostics
+tests: PASS; 6 source files, 18 tests
+benchmarks: PASS; 4 files, 4 tests; 31.64 seconds
+build: PASS; package declarations plus production React/Three/worker bundles
+Playwright discovery: PASS; 3 tests in 1 file
+Playwright execution: PASS; 3 tests in Chromium; 15.5 seconds in final `pnpm verify`
+```
+
+The production build reports a non-fatal chunk-size warning: the deterministic embedded-WASM
+chunk is 2,361.44 kB and the React/Three/Zod UI chunk is 803.07 kB (215.50 kB gzip). A warm
+default browser repeat reached generation 20 after 5.27 seconds of active observation and
+completed within the next three seconds with the canonical fitness. Pause, replay, and controls
+remained responsive; optimize only after repeat profiling in additional supported browsers.
+
+`pnpm licenses list --prod --json` reported only Apache-2.0 (Rapier) and MIT (React, React DOM,
+Scheduler, Three.js, and Zod) production licences. A live
+`pnpm audit --prod --audit-level high` query completed successfully and reported no known
+vulnerabilities.
+
+The four protected brief hashes match their Cycle 1 values, `git diff --check` passes, and a
+recursive `packages/` plus `apps/` scan found no `Math.random()` calls.
+
+Release decision: **PASS**. The controller-first MVP satisfies the declared automated,
+interactive, dependency, integrity, and recovery gates. The production chunk-size warning is
+recorded as optimization evidence and does not broaden this release into morphology or neural
+controller work.

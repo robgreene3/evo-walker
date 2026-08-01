@@ -8,7 +8,8 @@
     "node": ">=20.19.0"
   },
   "scripts": {
-    "dev": "pnpm build && pnpm --filter @evowalker/sim episode",
+    "dev": "pnpm --filter @evowalker/web dev",
+    "demo:episode": "pnpm build:packages && pnpm --filter @evowalker/sim episode",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "lint": "eslint .",
@@ -16,14 +17,21 @@
     "test": "vitest run",
     "test:core": "vitest run packages/core",
     "test:sim": "vitest run packages/sim",
+    "test:e2e": "playwright test",
     "benchmark": "vitest run --config vitest.benchmark.config.ts",
-    "build": "tsc -b tsconfig.build.json --pretty false",
-    "verify": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm benchmark && pnpm build"
+    "build:packages": "tsc -b tsconfig.build.json --pretty false",
+    "build": "pnpm build:packages && pnpm --filter @evowalker/web build",
+    "verify": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm benchmark && pnpm build && pnpm test:e2e"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
+    "@playwright/test": "1.62.1",
     "@types/node": "26.1.2",
+    "@types/react": "19.2.18",
+    "@types/react-dom": "19.2.4",
+    "@types/three": "0.185.1",
     "eslint": "10.8.0",
+    "eslint-plugin-react-hooks": "7.1.1",
     "prettier": "3.9.6",
     "typescript": "6.0.3",
     "typescript-eslint": "8.65.0",

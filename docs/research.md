@@ -44,6 +44,11 @@ Registry metadata checked with `pnpm view`:
 | Vitest                                    |   4.1.10 | MIT        | Supports Node 20, 22, and 24 lines   |
 | ESLint                                    |   10.8.0 | MIT        | Requires Node 20.19+ / 22.13+ / 24+  |
 | Prettier                                  |    3.9.6 | MIT        | Formatting baseline                  |
+| React / React DOM                         |   19.2.8 | MIT        | Existing-project component UI        |
+| Three.js                                  |  0.185.1 | MIT        | Champion-only 3D rendering           |
+| `@vitejs/plugin-react`                    |    6.0.5 | MIT        | Vite 8 React transform/refresh       |
+| Playwright                                |   1.62.1 | Apache-2.0 | Browser interaction and E2E gate     |
+| Zod                                       |    4.4.3 | MIT        | Strict runtime experiment validation |
 
 ## Inferred
 
@@ -54,7 +59,8 @@ Registry metadata checked with `pnpm view`:
 
 ## Research delta and next trigger
 
-The material change from the brief is selecting Rapier's explicit deterministic flavor;
-the standard flavor changed its guarantee in Rapier.js 0.15. The next research trigger is
-Slice 4 worker behavior and browser support. React, Three.js, schema validation, and
-Playwright versions should be refreshed only when their slices begin.
+The material changes from the brief are selecting Rapier's explicit deterministic flavor,
+ES-module workers for Rapier's top-level WASM initialization, and Zod for untrusted experiment
+documents. The standard Rapier flavor changed its guarantee in Rapier.js 0.15. The next
+research trigger is any physics, schema, or browser-support upgrade; no deferred morphology
+dependency is justified by the controller-first MVP.
