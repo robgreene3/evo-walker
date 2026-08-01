@@ -77,6 +77,10 @@ authoritative simulation state.
 
 See `docs/experiment-format.md` and `docs/reproducibility.md` for exact guarantees and limits.
 
+## Licence
+
+EvoWalker is available under the MIT License. See `LICENSE`.
+
 ## Scope boundary
 
 Morphology evolution, neural controllers, services, accounts, cloud sync, and telemetry are

@@ -64,3 +64,8 @@ ES-module workers for Rapier's top-level WASM initialization, and Zod for untrus
 documents. The standard Rapier flavor changed its guarantee in Rapier.js 0.15. The next
 research trigger is any physics, schema, or browser-support upgrade; no deferred morphology
 dependency is justified by the controller-first MVP.
+
+For publication preparation, GitHub's maintained `actions/checkout` and `actions/setup-node`
+repositories document current version-6 workflows compatible with Node 24. The verification
+workflow therefore uses those actions and disables implicit package-manager caching in favor of
+the repository's explicit frozen-lockfile install.

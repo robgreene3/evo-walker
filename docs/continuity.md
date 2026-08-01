@@ -10,5 +10,7 @@
 - Release evidence: the authored Playwright suite passes all three production-build journeys;
   the live production advisory query reports no known vulnerabilities; the integrity and
   recovery gates are recorded in `docs/verification.md`.
+- Publication readiness: an MIT licence and minimal GitHub Actions verification workflow are
+  prepared locally. The hosted workflow remains unobserved until a remote is explicitly approved.
 - Next review trigger: morphology evolution is a separate, explicitly authorized project phase.
   Preserve the brief hashes and canonical controller benchmark if that phase is opened.

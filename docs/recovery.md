@@ -4,7 +4,8 @@
 - The verified repository baseline is commit `547647c`; deterministic lineage completion is
   commit `68bf8fe`. The browser MVP is isolated on `feat/controller-first-mvp`; its release
   commit contains the UI, worker integration, persistence, documentation, and verification
-  evidence as one reviewable controller-first change.
+  evidence as one reviewable controller-first change. Publication preparation is a separate
+  follow-up commit so it can be removed without changing application or experiment behavior.
 - `node_modules/`, `.pnpm-store/`, build outputs, Playwright reports, and test results are
   generated and ignored. Regenerate them with `pnpm install --frozen-lockfile` and `pnpm build`.
 - Browser local saves use `evowalker:experiment:v1`. Export a JSON copy before clearing site

@@ -414,3 +414,17 @@ Release decision: **PASS**. The controller-first MVP satisfies the declared auto
 interactive, dependency, integrity, and recovery gates. The production chunk-size warning is
 recorded as optimization evidence and does not broaden this release into morphology or neural
 controller work.
+
+## Publication preparation
+
+- An MIT licence names `EvoWalker contributors` as the copyright holder without assigning
+  ownership to an inferred person or organization.
+- `.github/workflows/verify.yml` uses GitHub-maintained checkout and Node setup actions, pins the
+  observed Node 24.14.0 and pnpm 11.9.0 toolchain, installs Chromium with its Linux dependencies,
+  and runs the repository's unchanged `pnpm verify` gate on pull requests and pushes to `main`.
+- After adding the licence and workflow, local `pnpm verify` passed formatting, lint, strict
+  TypeScript, 6 test files with 18 tests, 4 benchmark files with 4 tests, the production build,
+  and 3 Playwright Chromium journeys. The browser journeys completed in 15.5 seconds.
+- Prettier parsed and accepted the workflow YAML as part of that verification. A hosted GitHub
+  Actions run is intentionally **UNOBSERVED** until an exact owner, repository name, and
+  visibility are confirmed and the local history is pushed.
