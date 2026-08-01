@@ -1,0 +1,33 @@
+{
+  "name": "evowalker",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.9.0",
+  "engines": {
+    "node": ">=20.19.0"
+  },
+  "scripts": {
+    "dev": "pnpm build && pnpm --filter @evowalker/sim episode",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "lint": "eslint .",
+    "typecheck": "tsc -p tsconfig.json --pretty false",
+    "test": "vitest run",
+    "test:core": "vitest run packages/core",
+    "test:sim": "vitest run packages/sim",
+    "benchmark": "vitest run --config vitest.benchmark.config.ts",
+    "build": "tsc -b tsconfig.build.json --pretty false",
+    "verify": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm benchmark && pnpm build"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@types/node": "26.1.2",
+    "eslint": "10.8.0",
+    "prettier": "3.9.6",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.65.0",
+    "vite": "8.2.0",
+    "vitest": "4.1.10"
+  }
+}

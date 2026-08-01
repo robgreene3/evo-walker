@@ -1,0 +1,9 @@
+node_modules
+dist
+coverage
+pnpm-lock.yaml
+*.tsbuildinfo
+01-RESEARCH-AND-VIABILITY.md
+02-AGENTS.md
+03-GPT-5.6-CODEX-MASTER-PROMPT.md
+AGENTS.md

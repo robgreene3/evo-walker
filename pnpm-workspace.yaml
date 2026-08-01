@@ -1,0 +1,10 @@
+packages:
+  - packages/*
+
+allowBuilds:
+  esbuild: set this to true or false
+
+minimumReleaseAge: 1440
+storeDir: .pnpm-store
+verifyDepsBeforeRun: false
+confirmModulesPurge: false

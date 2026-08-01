@@ -1,0 +1,19 @@
+{
+  "name": "@evowalker/sim",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "episode": "node dist/demo.js"
+  },
+  "dependencies": {
+    "@dimforge/rapier3d-deterministic-compat": "0.19.3",
+    "@evowalker/core": "workspace:*"
+  }
+}

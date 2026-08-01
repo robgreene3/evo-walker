@@ -1,0 +1,12 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "paths": {
+      "@evowalker/core": ["./packages/core/src/index.ts"],
+      "@evowalker/sim": ["./packages/sim/src/index.ts"],
+      "@evowalker/worker": ["./packages/worker/src/index.ts"]
+    }
+  },
+  "include": ["*.ts", "packages/**/*.ts"]
+}
