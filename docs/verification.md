@@ -428,6 +428,11 @@ controller work.
 - Prettier parsed and accepted the workflow YAML as part of that verification. A hosted GitHub
   Actions run is intentionally **UNOBSERVED** until an exact owner, repository name, and
   visibility are confirmed and the local history is pushed.
+- Hosted publication observation (2026-08-09): public repository
+  `https://github.com/robgreene3/evo-walker` accepted `main` and the annotated
+  `controller-first-mvp` tag at verified code commit `384daf3`. GitHub Actions Verify run
+  `31319738663` completed successfully in 2 minutes 2 seconds, including frozen dependency
+  installation, Chromium installation, and the unchanged consolidated verification gate.
 
 ## Cycle 7: clean-checkout verification repair
 
