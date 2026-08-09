@@ -588,3 +588,47 @@ adding more rendering or simulation dependencies.
   telemetry, while every scientific and scope guardrail remains intact. Additional browser
   engines and longer unattended interaction remain release-hardening triggers, not reasons to
   broaden into morphology or neural controllers.
+
+## Cycle 10: browser portability and sustained-run gate
+
+- Remaining uncertainty: the finished controller-first journey is automated only in Chromium;
+  the 3,038-evaluation run is useful live evidence but not a repeatable release gate, and the
+  reduced-motion mobile journey currently observes only the empty initial state.
+- Testable hypothesis: the unchanged production build can run its critical journey in Chromium,
+  Firefox, and WebKit, while a canonical seed-42 archive reaches at least 720 complete evaluations
+  without main-thread lockup, non-finite metrics, worker failure, or loss of pause/save recovery.
+- Predicted result: all three engines pass start, worker execution, checkpoint persistence,
+  archive specimen replay, keyboard control, unsupported-import recovery, and reduced-motion
+  mobile layout. The sustained Chromium run remains responsive, pauses at a complete boundary,
+  retains a viable replay, and serializes a validated local checkpoint.
+- Guardrails: no simulation, fitness, controller, archive, schema, dependency-version, topology,
+  or benchmark-threshold changes; no test-only application hooks; no claim of cross-engine
+  bitwise physics equality without direct evidence.
+- Falsifier: any engine cannot initialize Rapier/WebGL or complete the critical path; the soak
+  stalls before 720 evaluations, emits an error, produces NaN/Infinity, loses its replay/archive,
+  fails to pause/save, or the running 390×844 layout overflows horizontally.
+- Targeted cross-engine observation: the unchanged production build passed all eight applicable
+  Firefox 153.0 and WebKit 26.5 journeys in 44.8 seconds. Both engines initialized Rapier and
+  WebGL, evolved a viable archive, paused/resumed/stopped at evaluation boundaries, restored a
+  local checkpoint, rejected the incompatible fixture, reproduced an archive specimen while
+  exploration continued, and completed the active reduced-motion 390×844 layout without runtime
+  errors or horizontal overflow.
+- Sustained-run observation: Playwright Chromium 151.0.7922.34 reached at least 720 complete
+  seed-42 evaluations in 1.2 minutes. Pause remained actionable at the next boundary; the replay
+  was enabled, stability reported a full trial, aggregate and metric values were finite, an
+  occupied archive cell remained visible, local checkpoint serialization succeeded, and Stop
+  completed without console/page errors.
+- Consolidated observation: Node 24.14.0 `pnpm verify` passed Prettier, ESLint, strict TypeScript,
+  10 source-test files with 27 tests, all 4 canonical benchmark files/tests in 40.08 seconds, the
+  production build, and the 15-entry browser matrix with 13 passes plus 2 intentional
+  non-Chromium soak skips in 1.7 minutes. The pre-existing Rapier initializer and large-chunk
+  advisories remain non-fatal and unchanged.
+- Release-infrastructure review: the GitHub Actions browser installation was expanded from only
+  Chromium to the same pinned Chromium/Firefox/WebKit set required by `pnpm verify`; a hosted run
+  for this local branch remains unobserved until publication is separately authorized.
+- Integrity observation: all four protected brief hashes still match Cycle 1, `git diff --check`
+  passes, and experiment-affecting source contains no `Math.random()` calls.
+- Decision: **KEEP**. Multi-engine behavior and the sustained interactive session now have
+  repeatable release evidence. This qualifies browser functionality and responsiveness, not
+  cross-engine bitwise physics identity; the public `1e-9` numerical policy remains honest until
+  directly compared episode evidence exists.

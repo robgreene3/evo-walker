@@ -20,7 +20,8 @@ instruction file. The package-era README is preserved at `docs/brief/PACKAGE-REA
 
 - Node.js 20.19 or newer; verification uses Node 24.14.0.
 - pnpm 11.9.0, selected through the `packageManager` field.
-- A current Chromium-family browser with Web Workers, WebAssembly, WebGL 2, and ES modules.
+- A current Chromium-, Firefox-, or WebKit/Safari-family browser with Web Workers, WebAssembly,
+  WebGL 2, and ES modules.
 
 The shell-default Node 20.11.1 observed during repository creation is not supported by the
 pinned Vite 8 and ESLint 10 toolchain.
@@ -48,8 +49,9 @@ pnpm test:e2e
 pnpm verify
 ```
 
-Install the pinned Playwright browser once with `pnpm exec playwright install chromium` when it
-is not cached. Exact observed evidence and environment caveats are in
+Install the pinned Playwright browsers once with
+`pnpm exec playwright install chromium firefox webkit` when they are not cached. Exact observed
+evidence and environment caveats are in
 `docs/verification.md`.
 
 ## Architecture

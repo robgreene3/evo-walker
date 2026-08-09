@@ -199,6 +199,57 @@ test("replays a gait-atlas specimen while evolution continues", async ({
   expect(runtimeErrors).toEqual([]);
 });
 
+test("sustains 720 evaluations with responsive checkpoint recovery", async ({
+  page,
+}, testInfo) => {
+  test.skip(
+    testInfo.project.name !== "chromium",
+    "The sustained-run performance gate is calibrated for Chromium.",
+  );
+  const runtimeErrors = recordRuntimeErrors(page);
+  await page.goto("/");
+  await page
+    .getByRole("button", { name: "Begin evolution", exact: true })
+    .click();
+  await expect(page.locator(".app-frame")).toHaveAttribute(
+    "data-status",
+    "running",
+  );
+
+  const heading = page.getByRole("heading", { name: /evaluations$/u });
+  await expect
+    .poll(async () => evaluationsFrom(await heading.innerText()), {
+      timeout: 80_000,
+      intervals: [500, 1_000, 2_000],
+    })
+    .toBeGreaterThanOrEqual(720);
+
+  await page.getByRole("button", { name: "Pause", exact: true }).click();
+  await expect(page.locator(".app-frame")).toHaveAttribute(
+    "data-status",
+    "paused",
+  );
+  await expect(
+    page.getByRole("button", { name: "Replay", exact: true }),
+  ).toBeEnabled();
+  await expect(page.locator(".metric-cards")).toContainText("full trial");
+  await expect(page.locator(".aggregate strong")).not.toHaveText("—");
+  const visibleMetrics = await page
+    .locator(".metric-cards strong")
+    .allTextContents();
+  expect(visibleMetrics.join(" ")).not.toMatch(/NaN|Infinity/u);
+  await expect(page.locator(".archive-cell.occupied").first()).toBeVisible();
+
+  await page.getByRole("button", { name: "Save local", exact: true }).click();
+  await expect(
+    page.getByText("Checkpoint saved locally in this browser.", {
+      exact: true,
+    }),
+  ).toBeVisible();
+  await stopExploration(page);
+  expect(runtimeErrors).toEqual([]);
+});
+
 test("preserves essential content on a reduced-motion mobile viewport", async ({
   page,
 }) => {
@@ -216,10 +267,20 @@ test("preserves essential content on a reduced-motion mobile viewport", async ({
   await expect(
     page.getByRole("heading", { name: "0 evaluations" }),
   ).toBeVisible();
+  await configure(page, 4, 4);
+  await page
+    .getByRole("button", { name: "Begin evolution", exact: true })
+    .click();
+  await expect(page.locator(".app-frame")).toHaveAttribute(
+    "data-status",
+    "running",
+  );
+  await expect(page.locator(".archive-cell.occupied").first()).toBeVisible();
   const widths = await page.evaluate(() => ({
     document: document.documentElement.scrollWidth,
     viewport: window.innerWidth,
   }));
   expect(widths.document).toBe(widths.viewport);
+  await stopExploration(page);
   expect(runtimeErrors).toEqual([]);
 });

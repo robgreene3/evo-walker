@@ -301,8 +301,9 @@ Populate this section after inspecting or creating the repository. Keep only sta
 - Build/package: `pnpm build`.
 - Generated or protected paths: generated `node_modules/`, `.pnpm-store/`, `packages/*/dist/`;
   protected numbered brief files and `docs/brief/PACKAGE-README.md`.
-- Supported browsers/platforms: macOS 26.5.2 arm64 with Node 24.14.0 and Playwright Chromium;
-  current source tests, production build, desktop/mobile critical journey, and live browser pass.
+- Supported browsers/platforms: macOS 26.5.2 arm64 with Node 24.14.0 and Playwright Chromium,
+  Firefox, and WebKit; current source tests, production build, desktop/mobile critical journey,
+  720-evaluation sustained run, and live browser pass.
 - Current experiment: fixed eight-joint quadruped; six-second episode; continuous deterministic
   MAP-Elites-style controller archive; schema-v2 resumable checkpoints.
 - Project-specific done gate: all seven original MVP slices pass. The controller-first

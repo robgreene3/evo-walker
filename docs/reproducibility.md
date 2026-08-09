@@ -3,6 +3,9 @@
 ## Supported baseline
 
 - macOS 26.5.2 arm64; Node.js 24.14.0; pnpm 11.9.0
+- Playwright Chromium 151.0.7922.34, Firefox 153.0, and WebKit 26.5 for the production critical
+  journey; browser-runtime behavior passes, but cross-engine bitwise physics equality is not
+  claimed
 - `@dimforge/rapier3d-deterministic-compat` 0.19.3
 - fixed timestep 1/120 second; one substep
 - 0.75-second unscored settling interval; 5.25-second scored interval; 6-second total

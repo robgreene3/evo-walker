@@ -17,8 +17,9 @@ Status as of 2026-08-01:
 5. **Critical UI journey — complete with browser evidence.** React and Three.js integrate the
    browser worker; the observed default journey, responsive layouts, and cancellation gate pass.
 6. **Persistence and recovery — complete.** Versioned local and JSON state is strictly validated.
-7. **Release verification — complete.** Automated Chromium journeys, accessibility and responsive
-   behavior, performance evidence, production advisory, integrity, and recovery gates pass.
+7. **Release verification — complete.** Automated Chromium, Firefox, and WebKit journeys,
+   accessibility and responsive behavior, a 720-evaluation sustained-run gate, performance
+   evidence, production advisory, integrity, and recovery gates pass.
 
 All seven controller-first MVP slices pass. Morphology evolution remains out of scope and requires
 separate explicit authorization.
