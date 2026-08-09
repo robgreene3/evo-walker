@@ -15,6 +15,21 @@ export class Mulberry32 {
     this.state = seed >>> 0;
   }
 
+  public static fromSnapshot(snapshot: {
+    readonly algorithm: string;
+    readonly state: number;
+  }): Mulberry32 {
+    if (
+      snapshot.algorithm !== PRNG_IDENTITY ||
+      !Number.isSafeInteger(snapshot.state) ||
+      snapshot.state < 0 ||
+      snapshot.state > 0xffff_ffff
+    ) {
+      throw new TypeError("Invalid Mulberry32 snapshot.");
+    }
+    return new Mulberry32(snapshot.state);
+  }
+
   public next(): number {
     this.state = (this.state + 0x6d2b79f5) >>> 0;
     let value = this.state;

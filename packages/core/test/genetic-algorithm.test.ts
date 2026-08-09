@@ -73,7 +73,7 @@ describe("controller genetic algorithm", () => {
 
   it("keeps every evolved scalar finite and bounded", () => {
     const result = evolveControllerPopulation(TEST_CONFIG, analyticFitness);
-    expect(genomeScalarCount()).toBe(16);
+    expect(genomeScalarCount()).toBe(32);
     expect(() => {
       validateControllerGenome(result.champion.genome);
     }).not.toThrow();

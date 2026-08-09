@@ -1,13 +1,14 @@
 # EvoWalker
 
-EvoWalker is a local-first browser laboratory for deterministic evolutionary locomotion.
-It evolves sixteen periodic-controller genes against one fixed four-joint biped, evaluates
-each population in a Web Worker, and renders only the current champion in Three.js.
+EvoWalker is a local-first browser laboratory for reproducible evolutionary locomotion. A
+fixed articulated quadruped runs six-second deterministic physics trials while a continuous
+quality-diversity search evolves only its eight-joint periodic controller. Viable gaits occupy
+an inspectable archive; fallen or invalid candidates never become champions.
 
-The controller-first MVP supports the full experiment journey: configure a seed, start,
-observe generation statistics, pause, resume, cancel, restart, change replay speed, orbit the
-camera, inspect component fitness, genome, and ancestry, then save locally or export/import a
-validated versioned JSON document.
+The live experience does not end at an arbitrary generation count. Start a seeded archive,
+watch viable gait niches appear, pause or stop at a complete evaluation boundary, replay the
+current champion without renderer resets, inspect fitness/genome/ancestry, and save or export
+the exact archive plus PRNG state for deterministic continuation.
 
 The original build brief remains unchanged in `01-RESEARCH-AND-VIABILITY.md`,
 `02-AGENTS.md`, and `03-GPT-5.6-CODEX-MASTER-PROMPT.md`. `AGENTS.md` is the active repository
@@ -29,8 +30,8 @@ pnpm install --frozen-lockfile
 pnpm dev
 ```
 
-Open the local URL printed by Vite. The useful default is seed 42, population 12, and 30
-breeding generations.
+Open the local URL printed by Vite. The verified default uses seed 42, 24 founders, and an 8×8
+archive. Evolution continues until Pause or Stop.
 
 ## Verify
 
@@ -45,45 +46,45 @@ pnpm test:e2e
 pnpm verify
 ```
 
-Install the pinned Playwright browser once with `pnpm exec playwright install chromium` when
-it is not already cached. Exact observed evidence and environment caveats are recorded in
+Install the pinned Playwright browser once with `pnpm exec playwright install chromium` when it
+is not cached. Exact observed evidence and environment caveats are in
 `docs/verification.md`.
 
 ## Architecture
 
-- `packages/core`: Mulberry32 PRNG, bounded periodic genome, deterministic GA, lineage,
-  diversity telemetry, and strict experiment serialization.
-- `packages/sim`: deterministic Rapier world, fixed biped, fixed episode, component fitness,
-  immutable replay frames, reset, and checksum.
-- `packages/worker`: versioned batch/evolution protocol, generation-boundary progress,
-  pause/resume/cancellation, error propagation, and Node/browser entries.
-- `apps/web`: accessible React controls, champion-only Three.js replay, metrics/history,
-  lineage inspection, local persistence, and JSON import/export.
-- `docs`: decisions, research provenance, schema, reproducibility, recovery, and evidence.
+- `packages/core`: Mulberry32 PRNG, bounded periodic genomes, legacy generational GA,
+  continuous MAP-Elites-style archive, lineage, deterministic checkpoints, and strict schemas.
+- `packages/sim`: deterministic Rapier world, fixed quadruped, episode scoring, gait
+  descriptors, immutable replay frames, reset, and checksum.
+- `packages/worker`: versioned direct/evolution/exploration protocol with evaluation-boundary
+  pause, resume, stop, and browser/Node entries.
+- `apps/web`: accessible React controls, uninterrupted champion-only Three.js replay, archive
+  map, metrics/history, lineage inspection, and local/JSON persistence.
 
-The worker advances one complete generation synchronously, then yields so the browser can
-process pause or cancellation. Rendering consumes copied episode frames and never mutates
-authoritative simulation state.
+Simulation truth stays in the deterministic core and worker. Rendering consumes copied frames
+and never mutates experiment state.
 
 ## Experiment integrity
 
 - Experiment-affecting code never calls `Math.random()`.
-- Physics uses a fixed 1/120-second step and the deterministic Rapier 0.19.3 compat build.
-- Fitness is componentized as progress plus upright bonus minus fall, actuation, lateral,
-  and invalid penalties.
-- Version-1 experiment JSON is size-bounded and strictly validated before replacing UI state.
-- Imported or locally loaded snapshots are inspectable and restartable. Mid-evolution resume
-  is intentionally not claimed by version 1.
+- Physics uses a fixed 1/120-second step and deterministic Rapier 0.19.3 compat build.
+- Fitness is progress plus upright bonus minus fall, actuation, lateral, and invalid penalties.
+- Archive admission additionally requires a complete viable trial; a fallen sprinter cannot win.
+- Gait niches use ground-contact duty factor and diagonal coordination, both clamped to `[0,1]`.
+- Schema-v2 JSON is size-bounded and validated before state replacement. It stores the archive,
+  bounded lineage/history, configuration, and exact PRNG state needed to continue.
+- Same-runtime checkpoint continuation is tested exactly. Cross-platform bitwise equality is not
+  claimed.
 
-See `docs/experiment-format.md` and `docs/reproducibility.md` for exact guarantees and limits.
+See `docs/experiment-format.md`, `docs/reproducibility.md`, and `docs/recovery.md`.
+
+## Scope boundary
+
+The creature topology remains fixed. Morphology evolution, neural controllers, ecology,
+resources, accounts, cloud sync, telemetry, and backend services are not part of this build.
+“Gait ecology” describes a controller-behavior archive, not a claim of open-ended biological
+evolution.
 
 ## Licence
 
 EvoWalker is available under the MIT License. See `LICENSE`.
-
-## Scope boundary
-
-Morphology evolution, neural controllers, services, accounts, cloud sync, and telemetry are
-not part of this MVP. The controller-first release evidence is closed in
-`docs/verification.md`; any morphology work is a separate phase requiring explicit authorization
-and preservation of the canonical controller benchmark.

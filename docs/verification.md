@@ -358,6 +358,7 @@ Cycle 1 values exactly. The Rapier initializer warning documented above remains 
 
 - Testable hypothesis: a strict version-1 JSON document containing the complete inspectable
   generation snapshot and champion episode can round-trip locally without numerical drift.
+
 - Predicted result: local save/load and JSON export/import restore configuration, PRNG identity,
   physics provenance, history genomes, population champion, lineage, component fitness, frames,
   invalid reason, and checksum exactly; corrupt, oversized, non-finite, inconsistent, and
@@ -470,3 +471,66 @@ controller work.
 - Decision: **KEEP**. The documented install, standalone benchmark, and consolidated verification
   commands now work without warm generated artifacts while retaining pnpm's deny-by-default
   lifecycle policy for every dependency except the reviewed pinned esbuild package.
+
+## Cycle 8: continuous viable gait archive
+
+- User-visible defect: the finite biped demo repeatedly restarted its replay, then stopped with
+  a fallen creature; it did not communicate continued emergent evolution.
+- Baseline: clean repository at `be0a7c6`; `main`/`origin/main` pointed there and the existing
+  `controller-first-mvp` tag pointed to `384daf3`.
+- Testable hypothesis: an eight-joint fixed quadruped plus a deterministic, viability-gated
+  MAP-Elites-style controller archive can produce sustained visible progress without renderer
+  resets or morphology evolution.
+- Predicted result: default seed 42 produces a complete non-falling champion and multiple gait
+  niches during an ordinary interactive session; search continues until Pause/Stop; checkpoint
+  continuation is exact; controls remain responsive.
+- Guardrails: fixed topology, periodic controller only, deterministic Rapier and Mulberry32,
+  component fitness, preserved briefs/tag, no neural controller, morphology genes, backend,
+  telemetry, accounts, or biological/open-ended-evolution claim.
+- Falsifier: no viable founder, fallen archive champion, checkpoint drift, main-thread lockup,
+  replay renderer recreation on progress, schema replacement before validation, browser console
+  error, or benchmark non-improvement.
+- Initial failure: the first knee-offset range exceeded its declared controller bound. The
+  controller validator rejected it before physics, so the range was corrected without relaxing
+  the bound.
+- Stability revision: broadened stance, reduced founder amplitudes, and ramped motor targets over
+  0.5 seconds. Canonical seed 42 then completed the full six-second trial; moving-but-falling
+  seeds remained non-viable and were excluded from the archive.
+- Algorithm observation: uninterrupted/resumed core sessions matched exactly. Across seeds 7,
+  42, and 99 with 24 founders, an 8×8 archive, and 128 offspring evaluations, archive sizes grew
+  `3→13`, `3→16`, and `3→14`. Champion fitness changed `1.491992→1.491992`,
+  `0.749283→1.478941`, and `0.426209→1.286761`; all final champions were viable and moved
+  `1.324887`, `1.308782`, and `1.116046` metres respectively.
+- Browser observation: the live production page reached 57 evaluations and 10/64 niches in about
+  1.2 seconds, with fitness `1.37580`, progress `1.2035`, and zero fall penalty. Continued running
+  reached evaluation 512, 22/64 niches, fitness `1.48828`, progress `1.3133`, and zero fall
+  penalty; Pause held that exact boundary and browser error logs were empty.
+- UI observation: Three.js remained mounted while snapshots advanced; champions queue until a
+  loop boundary. Full-page inspection showed the quadruped, trace, heatmap, components, all eight
+  joint rows, and ancestry together. The authored Chromium suite passed keyboard start,
+  pause/resume/stop stability, local save/load, unsupported import, reduced motion, and 390×844
+  width in 15.8 seconds.
+- Decision: **KEEP**. The user-visible defect is corrected within the controller-first boundary.
+  “Gait ecology” means a two-descriptor archive, not open-ended morphology or ecology.
+
+Observed targeted verification before the consolidated release run:
+
+```text
+pnpm test
+  PASS: 9 files, 25 tests.
+
+pnpm lint && pnpm typecheck && pnpm build
+  PASS: no diagnostics; production build completed.
+
+pnpm test:e2e
+  PASS: 3 Chromium journeys in 15.8 seconds.
+
+pnpm verify
+  PASS: formatting, lint, strict typecheck, 9 files / 25 source tests,
+        4 files / 4 benchmark tests in 42.13 seconds, production build,
+        and 3 Chromium journeys in 15.8 seconds.
+```
+
+The production build retains Vite's advisory for the large deterministic-WASM/Three.js chunks.
+It is a measured optimization trigger, not a correctness failure. Profile and code-split before
+adding more rendering or simulation dependencies.

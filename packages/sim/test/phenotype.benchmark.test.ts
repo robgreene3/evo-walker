@@ -1,7 +1,5 @@
 import {
-  CONTROLLER_BOUNDS,
-  Mulberry32,
-  validateControllerGenome,
+  createSeededController,
   type PeriodicControllerGenome,
 } from "@evowalker/core";
 import { describe, expect, it } from "vitest";
@@ -12,18 +10,12 @@ import {
 } from "../src/index.js";
 
 const PROBE_SIZE = 64;
-const TAU = 2 * Math.PI;
-
-function wrapPhase(value: number): number {
-  return ((((value + Math.PI) % TAU) + TAU) % TAU) - Math.PI;
-}
-
 function createProbeController(index: number): PeriodicControllerGenome {
   const seed = 0x4556_4f00 + index;
   if (index === 0) {
     return {
       seed,
-      joints: Array.from({ length: 4 }, () => ({
+      joints: Array.from({ length: 8 }, () => ({
         amplitude: 0,
         frequencyHz: 1,
         phaseRadians: 0,
@@ -31,52 +23,7 @@ function createProbeController(index: number): PeriodicControllerGenome {
       })),
     };
   }
-  const prng = new Mulberry32(seed);
-  const frequencyHz = prng.range(0.7, 1.45);
-  const gaitPhase = prng.range(-Math.PI, Math.PI);
-  const hipAmplitude = prng.range(0.05, 0.7);
-  const kneeAmplitude = prng.range(0.1, 0.8);
-  const kneeLag = prng.range(0.25, 1.5);
-  const hipOffset = prng.range(-0.08, 0.08);
-  const kneeOffset = prng.range(-0.3, -0.02);
-  const asymmetry = prng.range(0.9, 1.1);
-  const genome: PeriodicControllerGenome = {
-    seed,
-    joints: [
-      {
-        amplitude: hipAmplitude,
-        frequencyHz,
-        phaseRadians: gaitPhase,
-        offset: hipOffset,
-      },
-      {
-        amplitude: Math.min(
-          CONTROLLER_BOUNDS.amplitude.maximum,
-          hipAmplitude * asymmetry,
-        ),
-        frequencyHz,
-        phaseRadians: wrapPhase(gaitPhase + Math.PI),
-        offset: -hipOffset,
-      },
-      {
-        amplitude: kneeAmplitude,
-        frequencyHz,
-        phaseRadians: wrapPhase(gaitPhase + kneeLag),
-        offset: kneeOffset,
-      },
-      {
-        amplitude: Math.min(
-          CONTROLLER_BOUNDS.amplitude.maximum,
-          kneeAmplitude / asymmetry,
-        ),
-        frequencyHz,
-        phaseRadians: wrapPhase(gaitPhase + Math.PI + kneeLag),
-        offset: kneeOffset,
-      },
-    ],
-  };
-  validateControllerGenome(genome);
-  return genome;
+  return createSeededController(seed);
 }
 
 describe("fixed-phenotype locomotion gate", () => {
@@ -88,13 +35,18 @@ describe("fixed-phenotype locomotion gate", () => {
         DEFAULT_EPISODE_CONFIG.settlingSeconds /
         DEFAULT_EPISODE_CONFIG.timestepSeconds;
       const settledFrame = result.frames.find(
-        (frame) => frame.step === settlingStep,
+        (frame) => frame.step >= settlingStep,
       );
       const finalFrame = result.frames.at(-1);
       if (settledFrame === undefined || finalFrame === undefined) {
         throw new Error("Episode did not capture settled and final frames.");
       }
-      const footAdvance = ["left-lower-leg", "right-lower-leg"].map((id) => {
+      const footAdvance = [
+        "front-left-lower-leg",
+        "front-right-lower-leg",
+        "rear-left-lower-leg",
+        "rear-right-lower-leg",
+      ].map((id) => {
         const settledBody = settledFrame.bodies.find((body) => body.id === id);
         const finalBody = finalFrame.bodies.find((body) => body.id === id);
         if (settledBody === undefined || finalBody === undefined) {

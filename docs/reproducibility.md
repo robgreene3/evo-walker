@@ -1,54 +1,42 @@
 # Reproducibility policy
 
-## Supported episode baseline
+## Supported baseline
 
-- macOS 26.5.2, arm64
-- Node.js 24.14.0
-- pnpm 11.9.0
+- macOS 26.5.2 arm64; Node.js 24.14.0; pnpm 11.9.0
 - `@dimforge/rapier3d-deterministic-compat` 0.19.3
-- fixed timestep: 1/120 second
-- substeps: 1
-- solver iterations: 8; internal PGS iterations: 2
-- settling interval: 1 second
-- scored duration: 2 seconds; total episode duration: 3 seconds
+- fixed timestep 1/120 second; one substep
+- 0.75-second unscored settling interval; 5.25-second scored interval; 6-second total
+- fixed one-torso/four-two-segment-leg morphology; eight periodic joint controllers
 
-## Predeclared Slice 2 gate
+For an unchanged build in the supported runtime, a fresh episode and reset/replay must terminate
+at 720 steps, contain no non-finite state, reproduce all components/frames exactly, and produce
+the same world checksum. Automated tests use exact equality; the public cross-platform numerical
+policy remains absolute tolerance `1e-9` because `Math.sin()` and host floating-point behavior
+have not been exhaustively compared across browsers.
 
-For an unchanged build in the supported environment, two fresh runs and a reset/replay
-must:
+## Continuous search
 
-1. terminate at exactly 360 steps;
-2. produce no NaN or Infinity;
-3. report identical invalid reasons and component names;
-4. keep each component and aggregate fitness within absolute tolerance `1e-9`;
-5. produce the same final Rapier world-snapshot checksum;
-6. reproduce every captured body transform within absolute tolerance `1e-9`.
+One Mulberry32 stream controls founder seeds, archive parent selection, crossover, bounded
+Gaussian mutation, and immigrants. The archive admits only complete viable trials. Its two
+behavior coordinates are contact duty factor and diagonal coordination, each in `[0,1]`.
 
-The automated same-runtime gate currently uses exact equality, which is stricter than
-the numeric tolerance. Cross-browser and cross-platform claims remain unknown until
-those environments are exercised. `Math.sin()` is used to evaluate controller targets;
-Rapier's documentation warns that transcendental functions can differ across platforms,
-so no bitwise cross-platform controller claim is made.
+Checkpoint tests compare an uninterrupted 40-step quality-diversity session to one restored after
+17 steps and require exact snapshot equality. Worker tests make the same comparison through the
+simulation boundary. Schema v2 stores enough state to continue exactly in the supported build.
 
-The Slice 3 GA uses the same Mulberry32 stream for initialization, tournament selection,
-arithmetic crossover, and bounded Gaussian mutation. The benchmark repeats one complete
-30-generation run exactly and checks improvement across seeds 7, 42, and 99.
+The canonical improvement benchmark uses seeds 7, 42, and 99, 24 founders, an 8×8 archive, and
+128 offspring trials. It requires non-regression for every seed, at least two seeds improving by
+`0.1`, mean improvement of at least `0.4`, at least six additional viable niches per run, and a
+valid non-falling champion moving at least `0.1` metres.
 
-The incremental worker session consumes the same random draws in the same order as the direct
-GA wrapper. The canonical seed-42 browser run reproduced aggregate fitness
-`1.8269563074123853` at generation 30. Same-build worker/direct equality is exact; the public
-cross-browser numerical policy remains absolute tolerance `1e-9` because `Math.sin()` and host
-floating-point behavior have not been exhaustively compared across supported browsers.
+## Fitness and viability
 
-Version-1 JSON serialization preserves stored JavaScript numbers and checksums exactly. This is
-storage equivalence, not a claim that a future physics or schema version will reproduce the same
-world. Binding, engine, build, schema, timestep, substeps, seed, fitness, and checksum remain in
-the document so drift is visible.
+`fitness = forward progress + upright bonus - fall penalty - actuation proxy - lateral drift penalty - invalid penalty`
 
-## Fitness
+Forward progress uses mass-weighted centre of mass after settling. The actuation term is a target
+motion proxy, not physical energy. Fitness still explains ranking inside a niche; archive
+admission separately requires no persistent fall and no invalid state. This prevents a fast fall
+from defeating a slower complete gait.
 
-`fitness = forward progress + upright bonus - fall penalty - actuation energy penalty - lateral drift penalty - invalid penalty`
-
-Forward progress uses the mass-weighted centre of mass after settling. The actuation
-term is a controller target-motion proxy, not measured electrical or mechanical energy;
-the UI must retain that label when it is introduced.
+Stored numbers and checksums round-trip exactly. This is storage equivalence, not a claim that a
+future physics, browser, or schema version reproduces the same world.

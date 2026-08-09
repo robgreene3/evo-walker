@@ -12,25 +12,33 @@ function recordRuntimeErrors(page: Page): string[] {
 
 async function configure(
   page: Page,
-  populationSize: number,
-  generations: number,
+  founders: number,
+  archiveBins: number,
 ): Promise<void> {
+  await page.getByLabel("Founders", { exact: true }).fill(String(founders));
   await page
-    .getByLabel("Population", { exact: true })
-    .fill(String(populationSize));
-  await page
-    .getByLabel("Generations", { exact: true })
-    .fill(String(generations));
+    .getByLabel("Archive grid", { exact: true })
+    .fill(String(archiveBins));
 }
 
-function generationFrom(text: string): number {
-  const value = Number.parseInt(text.split("/")[0] ?? "", 10);
+function evaluationsFrom(text: string): number {
+  const value = Number.parseInt(text, 10);
   if (!Number.isInteger(value))
-    throw new Error(`Invalid generation text: ${text}`);
+    throw new Error(`Invalid evaluation text: ${text}`);
   return value;
 }
 
-test("completes a short experiment from the keyboard", async ({ page }) => {
+async function stopExploration(page: Page): Promise<void> {
+  await page.getByRole("button", { name: "Stop", exact: true }).click();
+  await expect(page.locator(".app-frame")).toHaveAttribute(
+    "data-status",
+    "stopped",
+  );
+}
+
+test("runs, checkpoints, restores, and validates a continuous experiment", async ({
+  page,
+}) => {
   const runtimeErrors = recordRuntimeErrors(page);
   await page.goto("/");
   await expect(page.locator(".app-frame")).toHaveAttribute(
@@ -38,30 +46,31 @@ test("completes a short experiment from the keyboard", async ({ page }) => {
     "initial",
   );
   await expect(
-    page.getByText("No champion yet", { exact: true }),
+    page.getByText("No viable champion yet", { exact: true }),
   ).toBeVisible();
-  await configure(page, 4, 1);
+  await configure(page, 4, 4);
 
   const start = page.getByRole("button", {
-    name: "Start experiment",
+    name: "Begin evolution",
     exact: true,
   });
   await start.focus();
   await expect(start).toHaveCSS("box-shadow", /rgb/u);
   await page.keyboard.press("Enter");
-
   await expect(page.locator(".app-frame")).toHaveAttribute(
     "data-status",
-    "completed",
+    "running",
   );
-  await expect(
-    page.getByRole("heading", { name: "Generation 1" }),
-  ).toBeVisible();
   await expect(
     page.getByRole("button", { name: "Replay", exact: true }),
   ).toBeEnabled();
   await expect(
-    page.getByRole("heading", { name: "Champion genome" }),
+    page.getByRole("heading", { name: /evaluations$/u }),
+  ).toBeVisible();
+  await stopExploration(page);
+
+  await expect(
+    page.getByRole("heading", { name: "Champion controller" }),
   ).toBeVisible();
   await expect(
     page.getByRole("heading", { name: "Champion ancestry" }),
@@ -69,11 +78,12 @@ test("completes a short experiment from the keyboard", async ({ page }) => {
   const aggregate = await page.locator(".aggregate strong").innerText();
   await page.getByRole("button", { name: "Save local", exact: true }).click();
   await page.getByLabel("Seed", { exact: true }).fill("7");
-  await page.getByRole("button", { name: "Restart", exact: true }).click();
+  await page.getByRole("button", { name: "Start fresh", exact: true }).click();
   await expect(page.locator(".app-frame")).toHaveAttribute(
     "data-status",
-    "completed",
+    "running",
   );
+  await stopExploration(page);
   await page.getByRole("button", { name: "Load local", exact: true }).click();
   await expect(page.getByLabel("Seed", { exact: true })).toHaveValue("42");
   await expect(page.locator(".aggregate strong")).toHaveText(aggregate);
@@ -96,14 +106,14 @@ test("completes a short experiment from the keyboard", async ({ page }) => {
   expect(runtimeErrors).toEqual([]);
 });
 
-test("pauses, resumes, and cancels at generation boundaries", async ({
+test("pauses, resumes, and stops at evaluation boundaries", async ({
   page,
 }) => {
   const runtimeErrors = recordRuntimeErrors(page);
   await page.goto("/");
-  await configure(page, 64, 100);
+  await configure(page, 8, 4);
   await page
-    .getByRole("button", { name: "Start experiment", exact: true })
+    .getByRole("button", { name: "Begin evolution", exact: true })
     .click();
   await expect(page.locator(".app-frame")).toHaveAttribute(
     "data-status",
@@ -115,30 +125,26 @@ test("pauses, resumes, and cancels at generation boundaries", async ({
     "data-status",
     "paused",
   );
-  const paused = await page.locator(".progress-label strong").innerText();
+  const heading = page.getByRole("heading", { name: /evaluations$/u });
+  const paused = await heading.innerText();
   await page.waitForTimeout(500);
-  await expect(page.locator(".progress-label strong")).toHaveText(paused);
+  await expect(heading).toHaveText(paused);
+  await expect(
+    page.getByRole("button", { name: "Save local", exact: true }),
+  ).toBeEnabled();
 
   await page.getByRole("button", { name: "Resume", exact: true }).click();
   await expect(page.locator(".app-frame")).toHaveAttribute(
     "data-status",
     "running",
   );
-  const beforeCancel = generationFrom(
-    await page.locator(".progress-label strong").innerText(),
-  );
-  await page.getByRole("button", { name: "Cancel", exact: true }).click();
-  await expect(page.locator(".app-frame")).toHaveAttribute(
-    "data-status",
-    "cancelled",
-  );
-  const afterCancel = generationFrom(
-    await page.locator(".progress-label strong").innerText(),
-  );
+  await stopExploration(page);
+  const stoppedAt = evaluationsFrom(await heading.innerText());
+  await page.waitForTimeout(500);
 
-  expect(afterCancel - beforeCancel).toBeLessThanOrEqual(1);
+  expect(evaluationsFrom(await heading.innerText())).toBe(stoppedAt);
   await expect(
-    page.getByRole("button", { name: "Restart", exact: true }),
+    page.getByRole("button", { name: "Continue", exact: true }),
   ).toBeEnabled();
   await expect(
     page.getByText("Aggregate fitness", { exact: true }),
@@ -155,13 +161,13 @@ test("preserves essential content on a reduced-motion mobile viewport", async ({
   await page.goto("/");
 
   await expect(
-    page.getByRole("button", { name: "Start experiment", exact: true }),
+    page.getByRole("button", { name: "Begin evolution", exact: true }),
   ).toBeVisible();
   await expect(
-    page.getByRole("heading", { name: "Champion replay" }),
+    page.getByRole("heading", { name: "Uninterrupted champion replay" }),
   ).toBeVisible();
   await expect(
-    page.getByRole("heading", { name: "Generation 0" }),
+    page.getByRole("heading", { name: "0 evaluations" }),
   ).toBeVisible();
   const widths = await page.evaluate(() => ({
     document: document.documentElement.scrollWidth,

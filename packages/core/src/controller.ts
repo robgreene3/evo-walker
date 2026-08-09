@@ -1,6 +1,6 @@
 import { Mulberry32 } from "./prng.js";
 
-export const ACTUATED_JOINT_COUNT = 4;
+export const ACTUATED_JOINT_COUNT = 8;
 
 export interface JointControllerGenes {
   readonly amplitude: number;
@@ -91,13 +91,17 @@ export function createSeededController(seed: number): PeriodicControllerGenome {
   const phasePattern = [
     gaitPhase,
     gaitPhase + Math.PI,
+    gaitPhase + Math.PI,
+    gaitPhase,
     gaitPhase + Math.PI / 2,
-    gaitPhase - Math.PI / 2,
+    gaitPhase + Math.PI * 1.5,
+    gaitPhase + Math.PI * 1.5,
+    gaitPhase + Math.PI / 2,
   ] as const;
   const joints = Array.from({ length: ACTUATED_JOINT_COUNT }, (_, index) => {
-    const isKnee = index >= 2;
+    const isKnee = index >= 4;
     return {
-      amplitude: isKnee ? prng.range(0.45, 0.9) : prng.range(0.25, 0.7),
+      amplitude: isKnee ? prng.range(0.16, 0.36) : prng.range(0.08, 0.28),
       frequencyHz: clamp(
         baseFrequency + prng.range(-0.04, 0.04),
         CONTROLLER_BOUNDS.frequencyHz.minimum,
@@ -106,7 +110,7 @@ export function createSeededController(seed: number): PeriodicControllerGenome {
       phaseRadians: wrapPhase(
         (phasePattern[index] ?? 0) + prng.range(-0.12, 0.12),
       ),
-      offset: isKnee ? prng.range(-0.25, -0.05) : prng.range(-0.06, 0.06),
+      offset: isKnee ? prng.range(0.18, 0.32) : prng.range(-0.04, 0.04),
     };
   });
   const genome = { seed, joints };

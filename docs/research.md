@@ -78,3 +78,35 @@ is MIT-licensed, is the single esbuild version required by the pinned Vite toolc
 only its documented binary-selection and validation postinstall. A live full-graph `pnpm audit`
 reported no known vulnerabilities. The narrow `esbuild: true` entry therefore replaces the
 generated unresolved placeholder; no wildcard build permission is enabled.
+
+## 2026-08-09 controller-first research delta
+
+### Documented
+
+- The original MAP-Elites paper defines an archive whose user-chosen behavior cells retain
+  high-performing, qualitatively different solutions: <https://arxiv.org/abs/1504.04909>.
+- The QD framing explicitly differs from single-objective optimization by returning an archive
+  of locally high-performing behaviors: <https://doi.org/10.3389/frobt.2016.00040>.
+- A 2025 survey covers newer QD families and efficiency/representation challenges while retaining
+  MAP-Elites as a foundational framework: <https://doi.org/10.1016/j.swevo.2025.102240>.
+- A 2024 runtime analysis provides theoretical evidence that QD can also help optimization, but it
+  does not imply superiority for every budget or domain: <https://doi.org/10.24963/ijcai.2024/773>.
+- Work on reproducibility-aware QD targets uncertain/noisy domains. EvoWalker's current same-build
+  deterministic simulator does not justify adding that optimization layer yet:
+  <https://arxiv.org/abs/2304.03672>.
+
+### Supported recommendation
+
+Use a plain deterministic MAP-Elites-style grid for this low-dimensional periodic-controller
+problem. Duty factor and diagonal coordination are visible, bounded gait descriptors; a hard
+complete-trial viability gate prevents fallen sprinters from entering any cell. A fixed symmetric
+quadruped supplies a longer stable control path than the prior biped without crossing into
+morphology evolution.
+
+### Not adopted
+
+Surrogate-assisted illumination, deep reinforcement learning, neural controllers, and learned
+behavior embeddings could reduce evaluations or enlarge expressivity in other domains, but here
+they would add hidden state, dependencies, and harder checkpoint semantics before measured need.
+The next research trigger is archive saturation, measured throughput pressure, or an explicitly
+authorized morphology phase—not novelty alone.

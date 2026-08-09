@@ -22,3 +22,11 @@ Status as of 2026-08-01:
 
 All seven controller-first MVP slices pass. Morphology evolution remains out of scope and requires
 separate explicit authorization.
+
+## Controller-first post-MVP correction — complete
+
+The fixed body is now an eight-joint quadruped and the primary worker runs a resumable continuous
+quality-diversity archive. Viability-gated scoring, gait descriptors, deterministic checkpoint
+resume, uninterrupted replay, archive visualization, revised benchmarks, and browser journeys
+pass. The older generational GA remains as a compatibility baseline; body topology still does not
+evolve.

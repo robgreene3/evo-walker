@@ -2,6 +2,8 @@ import type {
   ControllerEvolutionSnapshot,
   GeneticAlgorithmConfig,
   PeriodicControllerGenome,
+  QualityDiversityConfig,
+  QualityDiversitySnapshot,
 } from "@evowalker/core";
 import type { EpisodeResult, FitnessComponents } from "@evowalker/sim";
 
@@ -23,6 +25,13 @@ export interface StartEvolutionRequest {
   readonly requestId: string;
   readonly config: GeneticAlgorithmConfig;
 }
+export interface StartExplorationRequest {
+  readonly kind: "explore";
+  readonly protocolVersion: number;
+  readonly requestId: string;
+  readonly config: QualityDiversityConfig;
+  readonly checkpoint?: QualityDiversitySnapshot;
+}
 export interface PauseEvolutionRequest {
   readonly kind: "pause";
   readonly protocolVersion: number;
@@ -37,6 +46,7 @@ export type WorkerRequest =
   | BatchEvaluationRequest
   | CancelEvaluationRequest
   | StartEvolutionRequest
+  | StartExplorationRequest
   | PauseEvolutionRequest
   | ResumeEvolutionRequest;
 export interface BatchEvaluationValue {
@@ -105,6 +115,33 @@ export interface EvolutionCancelledMessage {
   readonly snapshot: ControllerEvolutionSnapshot;
   readonly championEpisode: EpisodeResult;
 }
+export interface ExplorationProgressMessage {
+  readonly kind: "exploration-progress";
+  readonly protocolVersion: typeof WORKER_PROTOCOL_VERSION;
+  readonly requestId: string;
+  readonly snapshot: QualityDiversitySnapshot;
+  readonly championEpisode: EpisodeResult | null;
+  readonly championChanged: boolean;
+}
+export interface ExplorationPausedMessage {
+  readonly kind: "exploration-paused";
+  readonly protocolVersion: typeof WORKER_PROTOCOL_VERSION;
+  readonly requestId: string;
+  readonly evaluations: number;
+}
+export interface ExplorationResumedMessage {
+  readonly kind: "exploration-resumed";
+  readonly protocolVersion: typeof WORKER_PROTOCOL_VERSION;
+  readonly requestId: string;
+  readonly evaluations: number;
+}
+export interface ExplorationStoppedMessage {
+  readonly kind: "exploration-stopped";
+  readonly protocolVersion: typeof WORKER_PROTOCOL_VERSION;
+  readonly requestId: string;
+  readonly snapshot: QualityDiversitySnapshot;
+  readonly championEpisode: EpisodeResult | null;
+}
 export type WorkerResponse =
   | ProgressMessage
   | CompletedMessage
@@ -114,4 +151,8 @@ export type WorkerResponse =
   | EvolutionPausedMessage
   | EvolutionResumedMessage
   | EvolutionCompletedMessage
-  | EvolutionCancelledMessage;
+  | EvolutionCancelledMessage
+  | ExplorationProgressMessage
+  | ExplorationPausedMessage
+  | ExplorationResumedMessage
+  | ExplorationStoppedMessage;

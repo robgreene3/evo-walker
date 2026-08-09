@@ -8,6 +8,8 @@ export type {
 } from "./evaluate-batch.js";
 export { evolveExperiment } from "./evolve-experiment.js";
 export type { EvolutionHooks, EvolutionTerminal } from "./evolve-experiment.js";
+export { exploreExperiment } from "./explore-experiment.js";
+export type { ExplorationHooks } from "./explore-experiment.js";
 export { WORKER_PROTOCOL_VERSION } from "./protocol.js";
 export type {
   BatchEvaluationRequest,
@@ -21,10 +23,15 @@ export type {
   EvolutionPausedMessage,
   EvolutionProgressMessage,
   EvolutionResumedMessage,
+  ExplorationPausedMessage,
+  ExplorationProgressMessage,
+  ExplorationResumedMessage,
+  ExplorationStoppedMessage,
   PauseEvolutionRequest,
   ProgressMessage,
   ResumeEvolutionRequest,
   StartEvolutionRequest,
+  StartExplorationRequest,
   WorkerRequest,
   WorkerResponse,
 } from "./protocol.js";

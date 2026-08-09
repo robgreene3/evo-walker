@@ -22,8 +22,8 @@ export interface EpisodeConfig {
 export const DEFAULT_EPISODE_CONFIG: EpisodeConfig = Object.freeze({
   timestepSeconds: 1 / 120,
   substeps: 1,
-  durationSeconds: 3,
-  settlingSeconds: 1,
+  durationSeconds: 6,
+  settlingSeconds: 0.75,
   snapshotEverySteps: 12,
 });
 
@@ -58,6 +58,11 @@ export interface FitnessComponents {
   readonly invalidPenalty: number;
 }
 
+export interface GaitDescriptor {
+  readonly dutyFactor: number;
+  readonly diagonalCoordination: number;
+}
+
 export interface EpisodeProvenance {
   readonly schemaVersion: typeof EPISODE_SCHEMA_VERSION;
   readonly rapierBindingVersion: typeof RAPIER_BINDING_VERSION;
@@ -73,6 +78,9 @@ export interface EpisodeResult {
   readonly elapsedSeconds: number;
   readonly aggregateFitness: number;
   readonly components: FitnessComponents;
+  readonly gait: GaitDescriptor;
+  readonly viable: boolean;
+  readonly fallAtStep: number | null;
   readonly invalidReason: string | null;
   readonly actuationEnergyProxy: number;
   readonly frames: readonly EpisodeFrame[];
@@ -87,15 +95,20 @@ interface WorldState {
     readonly body: RAPIER.RigidBody;
   }[];
   readonly motors: readonly RAPIER.RevoluteImpulseJoint[];
+  readonly lowerLegs: readonly RAPIER.RigidBody[];
 }
 
 const ZERO_TARGETS = Object.freeze(
   Array.from({ length: ACTUATED_JOINT_COUNT }, () => 0),
 );
-const MOTOR_STIFFNESS = 3_200;
-const MOTOR_DAMPING = 80;
-const HIP_LIMIT_RADIANS = 0.75;
-const KNEE_LIMIT_RADIANS = 1.15;
+const MOTOR_STIFFNESS = 2_600;
+const MOTOR_DAMPING = 72;
+const HIP_LIMIT_RADIANS = 0.82;
+const KNEE_LIMIT_RADIANS = 1.2;
+const FALL_HEIGHT = 0.62;
+const FALL_UPRIGHT_COSINE = 0.64;
+const FALL_PERSISTENCE_STEPS = 24;
+const FOOT_CONTACT_HEIGHT = 0.31;
 const FITNESS_WEIGHTS = Object.freeze({
   uprightBonus: 0.2,
   fallPenalty: 2,
@@ -153,45 +166,48 @@ function buildWorld(config: EpisodeConfig): WorldState {
 
   const torso = world.createRigidBody(
     RAPIER.RigidBodyDesc.dynamic()
-      .setTranslation(0, 1.48, 0)
+      .setTranslation(0, 1.28, 0)
       .setLinearDamping(0.04)
       .setAngularDamping(0.08)
       .setCanSleep(false)
       .setCcdEnabled(true),
   );
   world.createCollider(
-    RAPIER.ColliderDesc.cuboid(0.3, 0.24, 0.22).setDensity(3).setFriction(0.9),
+    RAPIER.ColliderDesc.roundCuboid(0.56, 0.22, 0.34, 0.08)
+      .setDensity(2.8)
+      .setFriction(0.9),
     torso,
   );
 
   const legs = [
-    { id: "left", z: 0.17 },
-    { id: "right", z: -0.17 },
+    { id: "front-left", x: 0.4, z: 0.42 },
+    { id: "front-right", x: 0.4, z: -0.42 },
+    { id: "rear-left", x: -0.4, z: 0.42 },
+    { id: "rear-right", x: -0.4, z: -0.42 },
   ] as const;
   const bodies: { id: string; body: RAPIER.RigidBody }[] = [
     { id: "torso", body: torso },
   ];
   const hipMotors: RAPIER.RevoluteImpulseJoint[] = [];
   const kneeMotors: RAPIER.RevoluteImpulseJoint[] = [];
+  const lowerLegs: RAPIER.RigidBody[] = [];
 
   legs.forEach((leg) => {
     const upperLeg = world.createRigidBody(
       RAPIER.RigidBodyDesc.dynamic()
-        .setTranslation(0, 0.94, leg.z)
+        .setTranslation(leg.x, 0.78, leg.z)
         .setLinearDamping(0.03)
         .setAngularDamping(0.05)
         .setCanSleep(false)
         .setCcdEnabled(true),
     );
     world.createCollider(
-      RAPIER.ColliderDesc.cuboid(0.09, 0.3, 0.09)
-        .setDensity(1.5)
-        .setFriction(0.9),
+      RAPIER.ColliderDesc.capsule(0.2, 0.085).setDensity(1.5).setFriction(0.9),
       upperLeg,
     );
     const hipData = RAPIER.JointData.revolute(
-      { x: 0, y: -0.24, z: leg.z },
-      { x: 0, y: 0.3, z: 0 },
+      { x: leg.x, y: -0.22, z: leg.z },
+      { x: 0, y: 0.27, z: 0 },
       { x: 0, y: 0, z: 1 },
     );
     const hip = world.createImpulseJoint(hipData, torso, upperLeg, true);
@@ -206,29 +222,27 @@ function buildWorld(config: EpisodeConfig): WorldState {
 
     const lowerLeg = world.createRigidBody(
       RAPIER.RigidBodyDesc.dynamic()
-        .setTranslation(0, 0.36, leg.z)
+        .setTranslation(leg.x, 0.27, leg.z)
         .setLinearDamping(0.03)
         .setAngularDamping(0.05)
         .setCanSleep(false)
         .setCcdEnabled(true),
     );
     world.createCollider(
-      RAPIER.ColliderDesc.cuboid(0.085, 0.28, 0.085)
-        .setDensity(1.4)
-        .setFriction(0.9),
+      RAPIER.ColliderDesc.capsule(0.19, 0.08).setDensity(1.4).setFriction(0.9),
       lowerLeg,
     );
     world.createCollider(
-      RAPIER.ColliderDesc.cuboid(0.28, 0.07, 0.12)
-        .setTranslation(0.06, -0.26, 0)
+      RAPIER.ColliderDesc.roundCuboid(0.18, 0.055, 0.11, 0.035)
+        .setTranslation(0.09, -0.22, 0)
         .setDensity(1.2)
         .setFriction(1.4)
         .setRestitution(0),
       lowerLeg,
     );
     const kneeData = RAPIER.JointData.revolute(
-      { x: 0, y: -0.3, z: 0 },
-      { x: 0, y: 0.28, z: 0 },
+      { x: 0, y: -0.27, z: 0 },
+      { x: 0, y: 0.24, z: 0 },
       { x: 0, y: 0, z: 1 },
     );
     const knee = world.createImpulseJoint(kneeData, upperLeg, lowerLeg, true);
@@ -240,6 +254,7 @@ function buildWorld(config: EpisodeConfig): WorldState {
     knee.setLimits(0, KNEE_LIMIT_RADIANS);
     knee.configureMotorPosition(0, MOTOR_STIFFNESS, MOTOR_DAMPING);
     kneeMotors.push(knee);
+    lowerLegs.push(lowerLeg);
 
     bodies.push(
       { id: `${leg.id}-upper-leg`, body: upperLeg },
@@ -252,6 +267,7 @@ function buildWorld(config: EpisodeConfig): WorldState {
     torso,
     bodies,
     motors: Object.freeze([...hipMotors, ...kneeMotors]),
+    lowerLegs: Object.freeze(lowerLegs),
   };
 }
 
@@ -259,7 +275,7 @@ function physicalMotorTargets(
   controllerTargets: readonly number[],
 ): readonly number[] {
   return controllerTargets.map((target, index) =>
-    index < 2
+    index < 4
       ? Math.min(HIP_LIMIT_RADIANS, Math.max(-HIP_LIMIT_RADIANS, target))
       : Math.min(KNEE_LIMIT_RADIANS, Math.max(0, target)),
   );
@@ -398,6 +414,12 @@ export class DeterministicCreatureEpisode {
     let uprightSum = 0;
     let scoredSteps = 0;
     let fell = false;
+    let fallAtStep: number | null = null;
+    let unstableSteps = 0;
+    let contactSamples = 0;
+    let contactSum = 0;
+    let diagonalAgreement = 0;
+    let lateralAgreement = 0;
     let actuationEnergyProxy = 0;
     let previousTargets = ZERO_TARGETS;
     let invalidReason: string | null = null;
@@ -412,7 +434,9 @@ export class DeterministicCreatureEpisode {
         step <= settlingSteps
           ? ZERO_TARGETS
           : physicalMotorTargets(
-              controllerTargetsAt(this.controller, activeElapsed),
+              controllerTargetsAt(this.controller, activeElapsed).map(
+                (target) => target * Math.min(1, activeElapsed / 0.5),
+              ),
             );
       this.state.motors.forEach((motor, index) => {
         const target = targets[index];
@@ -450,7 +474,24 @@ export class DeterministicCreatureEpisode {
         const upY = torsoUpY(this.state.torso);
         uprightSum += Math.max(0, upY);
         scoredSteps += 1;
-        fell ||= this.state.torso.translation().y < 0.55 || upY < 0;
+        const unstable =
+          this.state.torso.translation().y < FALL_HEIGHT ||
+          upY < FALL_UPRIGHT_COSINE;
+        unstableSteps = unstable ? unstableSteps + 1 : 0;
+        if (fallAtStep === null && unstableSteps >= FALL_PERSISTENCE_STEPS) {
+          fell = true;
+          fallAtStep = step - FALL_PERSISTENCE_STEPS + 1;
+        }
+        const contacts = this.state.lowerLegs.map(
+          (leg) => leg.translation().y <= FOOT_CONTACT_HEIGHT,
+        );
+        const [frontLeft, frontRight, rearLeft, rearRight] = contacts;
+        contactSamples += contacts.length;
+        contactSum += contacts.filter(Boolean).length;
+        diagonalAgreement +=
+          Number(frontLeft === rearRight) + Number(frontRight === rearLeft);
+        lateralAgreement +=
+          Number(frontLeft === frontRight) + Number(rearLeft === rearRight);
       }
       if (step % this.config.snapshotEverySteps === 0 || step === totalSteps) {
         frames.push(
@@ -464,6 +505,20 @@ export class DeterministicCreatureEpisode {
     }
     const forwardProgress = finalCenter.x - referenceCenter.x;
     const uprightAverage = scoredSteps === 0 ? 0 : uprightSum / scoredSteps;
+    const gait = Object.freeze({
+      dutyFactor: contactSamples === 0 ? 0 : contactSum / contactSamples,
+      diagonalCoordination:
+        scoredSteps === 0
+          ? 0.5
+          : Math.min(
+              1,
+              Math.max(
+                0,
+                0.5 +
+                  (diagonalAgreement - lateralAgreement) / (4 * scoredSteps),
+              ),
+            ),
+    });
     const components: FitnessComponents = Object.freeze({
       forwardProgress,
       uprightBonus: FITNESS_WEIGHTS.uprightBonus * uprightAverage,
@@ -476,6 +531,7 @@ export class DeterministicCreatureEpisode {
       invalidPenalty:
         invalidReason === null ? 0 : FITNESS_WEIGHTS.invalidPenalty,
     });
+    const viable = invalidReason === null && !fell;
     const aggregateFitness =
       components.forwardProgress +
       components.uprightBonus -
@@ -500,6 +556,9 @@ export class DeterministicCreatureEpisode {
       elapsedSeconds: terminatedAtStep * this.config.timestepSeconds,
       aggregateFitness,
       components,
+      gait,
+      viable,
+      fallAtStep,
       invalidReason,
       actuationEnergyProxy,
       frames: Object.freeze(frames),

@@ -92,6 +92,12 @@ const episodeSchema = z.strictObject({
   elapsedSeconds: finite.nonnegative(),
   aggregateFitness: finite,
   components: fitnessComponentsSchema,
+  gait: z.strictObject({
+    dutyFactor: finite.min(0).max(1),
+    diagonalCoordination: finite.min(0).max(1),
+  }),
+  viable: z.boolean(),
+  fallAtStep: z.number().int().min(0).max(100_000).nullable(),
   invalidReason: z.string().min(1).max(512).nullable(),
   actuationEnergyProxy: finite.nonnegative(),
   frames: z
@@ -216,8 +222,8 @@ export function createExperimentDocument(
       rapierEngineVersion: parsedEpisode.provenance.rapierEngineVersion,
       timestepSeconds: parsedEpisode.provenance.timestepSeconds,
       substeps: parsedEpisode.provenance.substeps,
-      durationSeconds: 3,
-      settlingSeconds: 1,
+      durationSeconds: 6,
+      settlingSeconds: 0.75,
       snapshotEverySteps: 12,
     },
     snapshot,
