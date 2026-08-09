@@ -7,12 +7,18 @@ import type {
 } from "@evowalker/core";
 import type { EpisodeResult, FitnessComponents } from "@evowalker/sim";
 
-export const WORKER_PROTOCOL_VERSION = 1 as const;
+export const WORKER_PROTOCOL_VERSION = 2 as const;
 export interface BatchEvaluationRequest {
   readonly kind: "evaluate";
   readonly protocolVersion: number;
   readonly requestId: string;
   readonly genomes: readonly PeriodicControllerGenome[];
+}
+export interface ReplayEpisodeRequest {
+  readonly kind: "replay";
+  readonly protocolVersion: number;
+  readonly requestId: string;
+  readonly genome: PeriodicControllerGenome;
 }
 export interface CancelEvaluationRequest {
   readonly kind: "cancel";
@@ -44,6 +50,7 @@ export interface ResumeEvolutionRequest {
 }
 export type WorkerRequest =
   | BatchEvaluationRequest
+  | ReplayEpisodeRequest
   | CancelEvaluationRequest
   | StartEvolutionRequest
   | StartExplorationRequest
@@ -69,6 +76,12 @@ export interface CompletedMessage {
   readonly protocolVersion: typeof WORKER_PROTOCOL_VERSION;
   readonly requestId: string;
   readonly values: readonly BatchEvaluationValue[];
+}
+export interface ReplayEpisodeCompletedMessage {
+  readonly kind: "replay-completed";
+  readonly protocolVersion: typeof WORKER_PROTOCOL_VERSION;
+  readonly requestId: string;
+  readonly episode: EpisodeResult;
 }
 export interface CancelledMessage {
   readonly kind: "cancelled";
@@ -145,6 +158,7 @@ export interface ExplorationStoppedMessage {
 export type WorkerResponse =
   | ProgressMessage
   | CompletedMessage
+  | ReplayEpisodeCompletedMessage
   | CancelledMessage
   | ErrorMessage
   | EvolutionProgressMessage

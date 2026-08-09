@@ -1,6 +1,7 @@
 import {
   WORKER_PROTOCOL_VERSION,
   type BatchEvaluationRequest,
+  type ReplayEpisodeRequest,
   type StartExplorationRequest,
   type StartEvolutionRequest,
   type WorkerRequest,
@@ -68,6 +69,18 @@ async function runBatch(request: BatchEvaluationRequest): Promise<void> {
           }),
       }),
     );
+  } catch (error) {
+    reportError(request.requestId, error);
+  } finally {
+    finish();
+  }
+}
+
+async function runReplay(request: ReplayEpisodeRequest): Promise<void> {
+  if (!begin(request.requestId)) return;
+  try {
+    const { replayEpisode } = await import("./replay-episode.js");
+    scope.postMessage(replayEpisode(request));
   } catch (error) {
     reportError(request.requestId, error);
   } finally {
@@ -168,6 +181,7 @@ async function runExploration(request: StartExplorationRequest): Promise<void> {
 scope.onmessage = ({ data }) => {
   if (data.requestId !== activeRequestId && activeRequestId !== null) {
     if (data.kind === "evaluate") void runBatch(data);
+    if (data.kind === "replay") void runReplay(data);
     if (data.kind === "evolve") void runEvolution(data);
     if (data.kind === "explore") void runExploration(data);
     return;
@@ -186,6 +200,9 @@ scope.onmessage = ({ data }) => {
       break;
     case "evaluate":
       void runBatch(data);
+      break;
+    case "replay":
+      void runReplay(data);
       break;
     case "evolve":
       void runEvolution(data);

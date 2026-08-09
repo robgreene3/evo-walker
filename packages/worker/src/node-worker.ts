@@ -2,9 +2,11 @@ import { parentPort } from "node:worker_threads";
 import { evaluateBatch } from "./evaluate-batch.js";
 import { evolveExperiment } from "./evolve-experiment.js";
 import { exploreExperiment } from "./explore-experiment.js";
+import { replayEpisode } from "./replay-episode.js";
 import {
   WORKER_PROTOCOL_VERSION,
   type BatchEvaluationRequest,
+  type ReplayEpisodeRequest,
   type StartExplorationRequest,
   type StartEvolutionRequest,
   type WorkerRequest,
@@ -64,6 +66,16 @@ async function runBatch(request: BatchEvaluationRequest): Promise<void> {
           }),
       }),
     );
+  } catch (error) {
+    reportError(request.requestId, error);
+  } finally {
+    finish();
+  }
+}
+function runReplay(request: ReplayEpisodeRequest): void {
+  if (!begin(request.requestId)) return;
+  try {
+    post(replayEpisode(request));
   } catch (error) {
     reportError(request.requestId, error);
   } finally {
@@ -159,6 +171,7 @@ async function runExploration(request: StartExplorationRequest): Promise<void> {
 parentPort.on("message", (request: WorkerRequest) => {
   if (request.requestId !== activeRequestId && activeRequestId !== null) {
     if (request.kind === "evaluate") void runBatch(request);
+    if (request.kind === "replay") runReplay(request);
     if (request.kind === "evolve") void runEvolution(request);
     if (request.kind === "explore") void runExploration(request);
     return;
@@ -177,6 +190,9 @@ parentPort.on("message", (request: WorkerRequest) => {
       break;
     case "evaluate":
       void runBatch(request);
+      break;
+    case "replay":
+      runReplay(request);
       break;
     case "evolve":
       void runEvolution(request);

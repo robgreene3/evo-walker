@@ -5,12 +5,14 @@ import {
   createQualityDiversityExperimentDocument,
   parseQualityDiversityExperimentJson,
   serializeQualityDiversityExperimentDocument,
+  type QualityDiversityArchiveEntry,
   type QualityDiversityLineageRecord,
   type QualityDiversitySnapshot,
 } from "@evowalker/core";
 import type { EpisodeResult, FitnessComponents } from "@evowalker/sim";
 import {
   WORKER_PROTOCOL_VERSION,
+  type ReplayEpisodeRequest,
   type StartExplorationRequest,
   type WorkerResponse,
 } from "@evowalker/worker/protocol";
@@ -86,12 +88,13 @@ function formatNumber(value: number | null | undefined, digits = 3): string {
 
 function ancestry(
   snapshot: QualityDiversitySnapshot | null,
+  lineageId: string | null,
 ): readonly QualityDiversityLineageRecord[] {
-  if (snapshot?.champion === null || snapshot === null) return [];
+  if (snapshot === null || lineageId === null) return [];
   const records = new Map(
     snapshot.lineage.map((record) => [record.id, record]),
   );
-  const pending = [snapshot.champion.lineageId];
+  const pending = [lineageId];
   const result: QualityDiversityLineageRecord[] = [];
   const visited = new Set<string>();
   while (pending.length > 0 && result.length < 18) {
@@ -139,6 +142,14 @@ export function App() {
     null,
   );
   const [episode, setEpisode] = useState<EpisodeResult | null>(null);
+  const [selectedEntry, setSelectedEntry] =
+    useState<QualityDiversityArchiveEntry | null>(null);
+  const [inspectionEpisode, setInspectionEpisode] =
+    useState<EpisodeResult | null>(null);
+  const [inspectionState, setInspectionState] = useState<
+    "idle" | "loading" | "ready" | "error"
+  >("idle");
+  const [inspectionError, setInspectionError] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [playbackSpeed, setPlaybackSpeed] = useState(1);
   const [replayToken, setReplayToken] = useState(0);
@@ -148,8 +159,10 @@ export function App() {
   );
   const [discoveryMessage, setDiscoveryMessage] = useState("Awaiting founders");
   const workerRef = useRef<Worker | null>(null);
+  const inspectionWorkerRef = useRef<Worker | null>(null);
   const requestIdRef = useRef<string | null>(null);
   const requestSequence = useRef(0);
+  const inspectionSequence = useRef(0);
   const statusRef = useRef<ExperimentStatus>("initial");
   const episodeRef = useRef<EpisodeResult | null>(null);
   const archiveSizeRef = useRef(0);
@@ -162,6 +175,75 @@ export function App() {
   const assignEpisode = useCallback((next: EpisodeResult | null) => {
     episodeRef.current = next;
     setEpisode(next);
+  }, []);
+
+  const clearInspection = useCallback(() => {
+    inspectionWorkerRef.current?.terminate();
+    inspectionWorkerRef.current = null;
+    setSelectedEntry(null);
+    setInspectionEpisode(null);
+    setInspectionState("idle");
+    setInspectionError(null);
+    setReplayToken((token) => token + 1);
+  }, []);
+
+  const inspectEntry = useCallback((entry: QualityDiversityArchiveEntry) => {
+    inspectionWorkerRef.current?.terminate();
+    const worker = new Worker(
+      new URL(
+        "../../../packages/worker/src/browser-worker.ts",
+        import.meta.url,
+      ),
+      { type: "module", name: "evowalker-gait-inspection" },
+    );
+    const requestId = `gait-${entry.lineageId}-${String(++inspectionSequence.current)}`;
+    setSelectedEntry(entry);
+    setInspectionEpisode(null);
+    setInspectionState("loading");
+    setInspectionError(null);
+    worker.addEventListener(
+      "message",
+      ({ data }: MessageEvent<WorkerResponse>) => {
+        if (data.requestId !== requestId) return;
+        if (data.kind === "error") {
+          setInspectionState("error");
+          setInspectionError(data.message);
+          return;
+        }
+        if (data.kind !== "replay-completed") return;
+        const fitnessMatches =
+          Math.abs(data.episode.aggregateFitness - entry.fitness) <= 1e-9;
+        const behaviorMatches =
+          Math.abs(data.episode.gait.dutyFactor - entry.behavior.dutyFactor) <=
+            1e-9 &&
+          Math.abs(
+            data.episode.gait.diagonalCoordination -
+              entry.behavior.diagonalCoordination,
+          ) <= 1e-9;
+        if (!fitnessMatches || !behaviorMatches || !data.episode.viable) {
+          setInspectionState("error");
+          setInspectionError(
+            "This specimen did not reproduce its archived score and was not displayed.",
+          );
+          return;
+        }
+        setInspectionEpisode(data.episode);
+        setInspectionState("ready");
+        setReplayToken((token) => token + 1);
+      },
+    );
+    worker.addEventListener("error", (event) => {
+      setInspectionState("error");
+      setInspectionError(event.message || "The gait inspection worker failed.");
+    });
+    inspectionWorkerRef.current = worker;
+    const request: ReplayEpisodeRequest = {
+      kind: "replay",
+      protocolVersion: WORKER_PROTOCOL_VERSION,
+      requestId,
+      genome: entry.genome,
+    };
+    worker.postMessage(request);
   }, []);
 
   const receive = useCallback(
@@ -216,6 +298,7 @@ export function App() {
         case "progress":
         case "completed":
         case "cancelled":
+        case "replay-completed":
           break;
       }
     },
@@ -245,10 +328,13 @@ export function App() {
     return () => {
       workerRef.current?.terminate();
       workerRef.current = null;
+      inspectionWorkerRef.current?.terminate();
+      inspectionWorkerRef.current = null;
     };
   }, [createWorker]);
 
   const start = (checkpoint?: QualityDiversitySnapshot) => {
+    clearInspection();
     const worker = createWorker();
     const requestId = `exploration-${String(++requestSequence.current)}`;
     requestIdRef.current = requestId;
@@ -294,6 +380,7 @@ export function App() {
   const restoreDocument = (
     document: ReturnType<typeof parseQualityDiversityExperimentJson>,
   ) => {
+    clearInspection();
     workerRef.current?.terminate();
     requestIdRef.current = null;
     setConfig({
@@ -410,7 +497,9 @@ export function App() {
     snapshot !== null && ["paused", "stopped", "loaded"].includes(status);
   const coverage = snapshot?.history.at(-1)?.archiveCoverage ?? 0;
   const champion = snapshot?.champion ?? null;
-  const lineage = ancestry(snapshot);
+  const displayEpisode = selectedEntry === null ? episode : inspectionEpisode;
+  const displayedEntry = selectedEntry ?? champion;
+  const lineage = ancestry(snapshot, displayedEntry?.lineageId ?? null);
 
   return (
     <div className="app-frame" data-status={status}>
@@ -627,12 +716,20 @@ export function App() {
         <div className="workspace-grid">
           <section
             className="viewer-panel panel"
-            aria-labelledby="champion-heading"
+            aria-labelledby="replay-heading"
           >
             <div className="panel-heading">
               <div>
-                <p className="eyebrow">Viable current best</p>
-                <h2 id="champion-heading">Uninterrupted champion replay</h2>
+                <p className="eyebrow">
+                  {selectedEntry === null
+                    ? "Viable current best"
+                    : "Gait atlas specimen"}
+                </p>
+                <h2 id="replay-heading">
+                  {selectedEntry === null
+                    ? "Uninterrupted champion replay"
+                    : `Niche ${String(selectedEntry.xIndex + 1)} × ${String(selectedEntry.yIndex + 1)}`}
+                </h2>
               </div>
               <div className="replay-controls">
                 <label>
@@ -650,7 +747,7 @@ export function App() {
                 </label>
                 <button
                   type="button"
-                  disabled={episode === null}
+                  disabled={displayEpisode === null}
                   onClick={() => {
                     setReplayToken((token) => token + 1);
                   }}
@@ -659,14 +756,44 @@ export function App() {
                 </button>
               </div>
             </div>
+            {selectedEntry === null ? null : (
+              <div className="specimen-ribbon" role="status">
+                <span>
+                  <strong>Archive specimen</strong>
+                  <small>
+                    evaluation {selectedEntry.evaluation} · fitness{" "}
+                    {formatNumber(selectedEntry.fitness)}
+                  </small>
+                </span>
+                <span className={`inspection-state ${inspectionState}`}>
+                  {inspectionState === "loading"
+                    ? "Reproducing…"
+                    : inspectionState === "ready"
+                      ? "Score reproduced"
+                      : inspectionState === "error"
+                        ? inspectionError
+                        : "Selected"}
+                </span>
+                <button type="button" onClick={clearInspection}>
+                  Follow live champion
+                </button>
+              </div>
+            )}
             <ChampionScene
-              episode={episode}
+              episode={displayEpisode}
               playbackSpeed={playbackSpeed}
               replayToken={replayToken}
+              label={
+                selectedEntry === null
+                  ? "Champion replay"
+                  : "Selected gait specimen replay"
+              }
             />
             <p className="scene-help">
-              Drag to orbit · Scroll to zoom · Arrow keys rotate · new champions
-              enter between loops
+              Drag to orbit · Scroll to zoom · Arrow keys rotate ·{" "}
+              {selectedEntry === null
+                ? "new champions enter between loops"
+                : "evolution continues while this specimen loops"}
             </p>
           </section>
 
@@ -698,11 +825,17 @@ export function App() {
               </div>
               <div>
                 <span>Stability</span>
-                <strong>{episode?.viable === true ? "full trial" : "—"}</strong>
+                <strong>
+                  {displayEpisode?.viable === true ? "full trial" : "—"}
+                </strong>
               </div>
             </div>
             <FitnessChart history={snapshot?.history ?? []} />
-            <ArchiveMap snapshot={snapshot} />
+            <ArchiveMap
+              snapshot={snapshot}
+              selectedLineageId={selectedEntry?.lineageId ?? null}
+              onSelect={inspectEntry}
+            />
           </aside>
         </div>
 
@@ -717,22 +850,28 @@ export function App() {
             <p className="formula">
               progress + upright − fall − energy − lateral − invalid
             </p>
-            <FitnessComponentsPanel components={episode?.components ?? null} />
+            <FitnessComponentsPanel
+              components={displayEpisode?.components ?? null}
+            />
             <div className="descriptor-row">
               <span>
                 Ground contact{" "}
-                <strong>{formatNumber(episode?.gait.dutyFactor, 3)}</strong>
+                <strong>
+                  {formatNumber(displayEpisode?.gait.dutyFactor, 3)}
+                </strong>
               </span>
               <span>
                 Diagonal rhythm{" "}
                 <strong>
-                  {formatNumber(episode?.gait.diagonalCoordination, 3)}
+                  {formatNumber(displayEpisode?.gait.diagonalCoordination, 3)}
                 </strong>
               </span>
             </div>
             <div className="aggregate">
               <span>Aggregate fitness</span>
-              <strong>{formatNumber(episode?.aggregateFitness, 5)}</strong>
+              <strong>
+                {formatNumber(displayEpisode?.aggregateFitness, 5)}
+              </strong>
             </div>
           </section>
 
@@ -741,9 +880,13 @@ export function App() {
             aria-labelledby="genome-heading"
           >
             <div className="panel-heading">
-              <h2 id="genome-heading">Champion controller</h2>
+              <h2 id="genome-heading">
+                {selectedEntry === null
+                  ? "Champion controller"
+                  : "Specimen controller"}
+              </h2>
             </div>
-            {champion === null ? (
+            {displayedEntry === null ? (
               <p className="empty-copy">
                 No viable controller has entered the archive yet.
               </p>
@@ -760,7 +903,7 @@ export function App() {
                     </tr>
                   </thead>
                   <tbody>
-                    {champion.genome.joints.map((joint, index) => (
+                    {displayedEntry.genome.joints.map((joint, index) => (
                       <tr key={index}>
                         <th>{JOINT_NAMES[index]}</th>
                         <td>{formatNumber(joint.amplitude)}</td>
@@ -780,8 +923,12 @@ export function App() {
             aria-labelledby="lineage-heading"
           >
             <div className="panel-heading">
-              <h2 id="lineage-heading">Champion ancestry</h2>
-              <span>{champion?.lineageId ?? "unassigned"}</span>
+              <h2 id="lineage-heading">
+                {selectedEntry === null
+                  ? "Champion ancestry"
+                  : "Specimen ancestry"}
+              </h2>
+              <span>{displayedEntry?.lineageId ?? "unassigned"}</span>
             </div>
             {lineage.length === 0 ? (
               <p className="empty-copy">

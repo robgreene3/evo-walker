@@ -152,6 +152,53 @@ test("pauses, resumes, and stops at evaluation boundaries", async ({
   expect(runtimeErrors).toEqual([]);
 });
 
+test("replays a gait-atlas specimen while evolution continues", async ({
+  page,
+}) => {
+  const runtimeErrors = recordRuntimeErrors(page);
+  await page.goto("/");
+  await configure(page, 4, 4);
+  await page
+    .getByRole("button", { name: "Begin evolution", exact: true })
+    .click();
+  await expect(page.locator(".app-frame")).toHaveAttribute(
+    "data-status",
+    "running",
+  );
+
+  const archiveSpecimen = page.locator(".archive-cell.occupied").first();
+  await expect(archiveSpecimen).toBeVisible();
+  const heading = page.getByRole("heading", { name: /evaluations$/u });
+  const before = evaluationsFrom(await heading.innerText());
+  await archiveSpecimen.focus();
+  await page.keyboard.press("Enter");
+
+  await expect(
+    page.getByText("Archive specimen", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Specimen controller", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("Score reproduced", { exact: true }),
+  ).toBeVisible();
+  await expect
+    .poll(async () => evaluationsFrom(await heading.innerText()))
+    .toBeGreaterThan(before);
+
+  await page
+    .getByRole("button", { name: "Follow live champion", exact: true })
+    .click();
+  await expect(
+    page.getByRole("heading", {
+      name: "Uninterrupted champion replay",
+      exact: true,
+    }),
+  ).toBeVisible();
+  await stopExploration(page);
+  expect(runtimeErrors).toEqual([]);
+});
+
 test("preserves essential content on a reduced-motion mobile viewport", async ({
   page,
 }) => {

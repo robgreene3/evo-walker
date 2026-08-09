@@ -1,10 +1,17 @@
-import type { QualityDiversitySnapshot } from "@evowalker/core";
+import type {
+  QualityDiversityArchiveEntry,
+  QualityDiversitySnapshot,
+} from "@evowalker/core";
 import type { CSSProperties } from "react";
 
 export function ArchiveMap({
   snapshot,
+  selectedLineageId,
+  onSelect,
 }: {
   readonly snapshot: QualityDiversitySnapshot | null;
+  readonly selectedLineageId: string | null;
+  readonly onSelect: (entry: QualityDiversityArchiveEntry) => void;
 }) {
   const bins = snapshot?.config.archiveBins ?? 8;
   const entries = new Map(
@@ -26,29 +33,34 @@ export function ArchiveMap({
       <div
         className="archive-grid"
         style={{ gridTemplateColumns: `repeat(${String(bins)}, 1fr)` }}
-        role="img"
         aria-label={`${String(entries.size)} of ${String(bins * bins)} gait niches occupied.`}
       >
         {Array.from({ length: bins * bins }, (_, cellIndex) => {
           const entry = entries.get(cellIndex);
           const strength =
             entry === undefined ? 0 : (entry.fitness - minimum) / span;
+          if (entry === undefined)
+            return (
+              <span
+                key={cellIndex}
+                className="archive-cell"
+                title="Unoccupied gait niche"
+                aria-hidden="true"
+              />
+            );
+          const selected = selectedLineageId === entry.lineageId;
           return (
-            <span
+            <button
               key={cellIndex}
-              className={
-                entry === undefined ? "archive-cell" : "archive-cell occupied"
-              }
-              style={
-                entry === undefined
-                  ? undefined
-                  : ({ "--fitness": strength.toFixed(3) } as CSSProperties)
-              }
-              title={
-                entry === undefined
-                  ? "Unoccupied gait niche"
-                  : `fitness ${entry.fitness.toFixed(3)} · evaluation ${String(entry.evaluation)}`
-              }
+              type="button"
+              className={`archive-cell occupied${selected ? " selected" : ""}`}
+              style={{ "--fitness": strength.toFixed(3) } as CSSProperties}
+              aria-pressed={selected}
+              aria-label={`Gait niche: ground contact ${entry.behavior.dutyFactor.toFixed(3)}, diagonal rhythm ${entry.behavior.diagonalCoordination.toFixed(3)}, fitness ${entry.fitness.toFixed(3)}, evaluation ${String(entry.evaluation)}`}
+              title={`Replay gait · fitness ${entry.fitness.toFixed(3)} · evaluation ${String(entry.evaluation)}`}
+              onClick={() => {
+                onSelect(entry);
+              }}
             />
           );
         })}

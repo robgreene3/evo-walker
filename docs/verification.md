@@ -534,3 +534,57 @@ pnpm verify
 The production build retains Vite's advisory for the large deterministic-WASM/Three.js chunks.
 It is a measured optimization trigger, not a correctness failure. Profile and code-split before
 adding more rendering or simulation dependencies.
+
+## Cycle 9: interactive gait atlas lovability pass
+
+- User-visible uncertainty: the continuous archive is scientifically real and visually legible,
+  but occupied cells are passive telemetry; a user cannot experience the diverse creatures the
+  archive claims to contain.
+- Baseline: clean local commit `e0fba1b`; live default seed 42 reached 112 evaluations and 14/64
+  niches during review, but only the aggregate champion could be replayed. The chassis remained a
+  plain box and articulated joints were not visually identified.
+- Product judgment: **NOT YET LOVED**. The application is credible and handsome, but the most
+  distinctive result—behavioral diversity—cannot be touched, compared, or remembered.
+- Testable hypothesis: turning occupied archive cells into keyboard-accessible replay controls,
+  evaluating the selected genome in a separate inspection worker, and clearly distinguishing
+  “live champion” from “atlas specimen” will make discovery experiential while the primary
+  evolution worker continues uninterrupted.
+- Predicted result: selecting any occupied niche produces its deterministic episode and metadata,
+  does not change the archive/evaluation stream, and offers an explicit return to the live
+  champion. A modest rounded-chassis and luminous-joint treatment improves creature readability
+  without misrepresenting body count or authoritative transforms.
+- Guardrails: fixed eight-joint topology and existing controller genes; unchanged physics,
+  scoring, descriptors, archive algorithm, canonical seeds, persistence schema, and critical
+  controls; no morphology evolution, neural controller, audio dependency, backend, or telemetry.
+- Falsifier: selection pauses/restarts evolution, returns a checksum/fitness inconsistent with
+  direct simulation, makes empty cells interactive, traps keyboard focus, obscures whether the
+  displayed gait is champion or specimen, introduces console errors, or regresses checkpoint and
+  benchmark evidence.
+- Intervention: worker protocol v2 adds a single-genome deterministic replay request. Occupied
+  archive cells became focusable buttons; a dedicated inspection worker must reproduce fitness
+  and both behavior descriptors within `1e-9` before the specimen, its controller, components,
+  and ancestry replace the display. “Follow live champion” exits inspection without touching the
+  exploration worker. The renderer gained a rounded torso and eight luminous joint markers at
+  the existing physical anchors; authoritative transforms and physics were unchanged.
+- Live browser observation: seed 42 advanced from 195 to 279 evaluations while evaluation 7's
+  non-champion gait was selected. Its archived fitness `0.312` reproduced as `0.31160`, its ground
+  contact and diagonal-rhythm descriptors reproduced as `0.714` and `0.352`, the archive grew
+  from 18 to 19 occupied niches, and returning to the champion restored all champion-labelled
+  panels. At later observation the same uninterrupted run had reached 3,038 evaluations, 25/64
+  niches, and a viable `1.51858` champion.
+- Test revision: the first new Playwright assertion retained `.first()` while the live archive
+  inserted cells ahead of the selected one. That locator no longer denoted the activated cell;
+  the assertion was corrected to the stable selected-state identity, then the isolated journey
+  passed in 8.8 seconds. No product behavior was weakened.
+- Consolidated observation: Node 24.14.0 `pnpm verify` passed Prettier, ESLint, strict TypeScript,
+  10 source-test files with 27 tests, all 4 canonical benchmark files/tests in 43.03 seconds, the
+  production build, and 4 Chromium journeys in 26.5 seconds. The browser journeys record console
+  and page errors and observed none. The existing deterministic-WASM/Three.js chunk-size advisory
+  and Rapier initialization deprecation notice remain non-fatal.
+- Integrity observation: all four protected brief SHA-256 hashes still match Cycle 1,
+  `git diff --check` passes, and `packages/` plus `apps/` contain no `Math.random()` calls.
+- Decision: **KEEP — personally compelling within the controller-first MVP boundary**. The
+  archive now feels like a collection of discoverable living behaviors rather than passive
+  telemetry, while every scientific and scope guardrail remains intact. Additional browser
+  engines and longer unattended interaction remain release-hardening triggers, not reasons to
+  broaden into morphology or neural controllers.

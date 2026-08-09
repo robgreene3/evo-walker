@@ -7,8 +7,10 @@ an inspectable archive; fallen or invalid candidates never become champions.
 
 The live experience does not end at an arbitrary generation count. Start a seeded archive,
 watch viable gait niches appear, pause or stop at a complete evaluation boundary, replay the
-current champion without renderer resets, inspect fitness/genome/ancestry, and save or export
-the exact archive plus PRNG state for deterministic continuation.
+current champion without renderer resets, or select any occupied archive niche to meet that
+specimen while evolution continues. Fitness, genome, and ancestry follow the displayed gait;
+save or export retains the authoritative live archive plus PRNG state for deterministic
+continuation.
 
 The original build brief remains unchanged in `01-RESEARCH-AND-VIABILITY.md`,
 `02-AGENTS.md`, and `03-GPT-5.6-CODEX-MASTER-PROMPT.md`. `AGENTS.md` is the active repository
@@ -56,10 +58,11 @@ is not cached. Exact observed evidence and environment caveats are in
   continuous MAP-Elites-style archive, lineage, deterministic checkpoints, and strict schemas.
 - `packages/sim`: deterministic Rapier world, fixed quadruped, episode scoring, gait
   descriptors, immutable replay frames, reset, and checksum.
-- `packages/worker`: versioned direct/evolution/exploration protocol with evaluation-boundary
-  pause, resume, stop, and browser/Node entries.
-- `apps/web`: accessible React controls, uninterrupted champion-only Three.js replay, archive
-  map, metrics/history, lineage inspection, and local/JSON persistence.
+- `packages/worker`: versioned direct/evolution/exploration/replay protocol with
+  evaluation-boundary pause, resume, stop, and browser/Node entries.
+- `apps/web`: accessible React controls, uninterrupted Three.js champion replay, a
+  keyboard-operable gait atlas with isolated specimen replay, metrics/history, lineage
+  inspection, and local/JSON persistence.
 
 Simulation truth stays in the deterministic core and worker. Rendering consumes copied frames
 and never mutates experiment state.

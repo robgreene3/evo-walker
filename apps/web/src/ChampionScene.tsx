@@ -6,6 +6,7 @@ interface ChampionSceneProps {
   readonly episode: EpisodeResult | null;
   readonly playbackSpeed: number;
   readonly replayToken: number;
+  readonly label: string;
 }
 
 const BODY_IDS = [
@@ -38,13 +39,17 @@ function makeBody(id: string): RenderBody {
   const lower = id.endsWith("lower-leg");
   const geometry =
     id === "torso"
-      ? new THREE.BoxGeometry(1.12, 0.44, 0.68, 3, 2, 2)
+      ? new THREE.CapsuleGeometry(0.25, 0.62, 10, 20)
       : new THREE.CapsuleGeometry(
           lower ? 0.08 : 0.085,
           lower ? 0.38 : 0.4,
           8,
           16,
         );
+  if (id === "torso") {
+    geometry.rotateZ(Math.PI / 2);
+    geometry.scale(1, 0.88, 1.36);
+  }
   const mesh = new THREE.Mesh(geometry, material);
   mesh.castShadow = true;
   mesh.receiveShadow = true;
@@ -66,6 +71,7 @@ export function ChampionScene({
   episode,
   playbackSpeed,
   replayToken,
+  label,
 }: ChampionSceneProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const activeEpisodeRef = useRef<EpisodeResult | null>(episode);
@@ -148,6 +154,47 @@ export function ChampionScene({
       bodyGeometries.push(...body.geometries);
       bodyMaterials.push(body.material);
     }
+
+    const jointGeometry = new THREE.SphereGeometry(0.057, 16, 10);
+    const hipMaterial = new THREE.MeshStandardMaterial({
+      color: 0xffd477,
+      emissive: 0x9b5a13,
+      emissiveIntensity: 0.6,
+      roughness: 0.24,
+      metalness: 0.5,
+    });
+    const kneeMaterial = new THREE.MeshStandardMaterial({
+      color: 0x8bf2de,
+      emissive: 0x17675d,
+      emissiveIntensity: 0.62,
+      roughness: 0.26,
+      metalness: 0.45,
+    });
+    const legAnchors = [
+      { id: "front-left", x: 0.4, z: 0.42 },
+      { id: "front-right", x: 0.4, z: -0.42 },
+      { id: "rear-left", x: -0.4, z: 0.42 },
+      { id: "rear-right", x: -0.4, z: -0.42 },
+    ] as const;
+    const joints = legAnchors.flatMap((leg) => {
+      const hip = new THREE.Mesh(jointGeometry, hipMaterial);
+      const knee = new THREE.Mesh(jointGeometry, kneeMaterial);
+      hip.castShadow = true;
+      knee.castShadow = true;
+      scene.add(hip, knee);
+      return [
+        {
+          mesh: hip,
+          bodyId: "torso",
+          local: new THREE.Vector3(leg.x, -0.22, leg.z),
+        },
+        {
+          mesh: knee,
+          bodyId: `${leg.id}-upper-leg`,
+          local: new THREE.Vector3(0, -0.27, 0),
+        },
+      ];
+    });
 
     const trailPositions = new Float32Array(180 * 3);
     const trailGeometry = new THREE.BufferGeometry();
@@ -232,7 +279,7 @@ export function ChampionScene({
     canvas.tabIndex = 0;
     canvas.setAttribute(
       "aria-label",
-      "Champion replay. Drag or use arrow keys to rotate the camera; scroll to zoom.",
+      `${label}. Drag or use arrow keys to rotate the camera; scroll to zoom.`,
     );
     canvas.addEventListener("pointerdown", pointerDown);
     canvas.addEventListener("pointermove", pointerMove);
@@ -284,6 +331,13 @@ export function ChampionScene({
               body.rotation.z,
               body.rotation.w,
             );
+          }
+          scene.updateMatrixWorld(true);
+          for (const joint of joints) {
+            const body = meshes.get(joint.bodyId);
+            if (body === undefined) continue;
+            joint.mesh.position.copy(joint.local);
+            body.localToWorld(joint.mesh.position);
           }
           const torso = frame?.bodies.find(({ id }) => id === "torso");
           if (torso !== undefined) {
@@ -339,6 +393,9 @@ export function ChampionScene({
       bodyMaterials.forEach((material) => {
         material.dispose();
       });
+      jointGeometry.dispose();
+      hipMaterial.dispose();
+      kneeMaterial.dispose();
       ground.geometry.dispose();
       ground.material.dispose();
       trailGeometry.dispose();
@@ -346,7 +403,7 @@ export function ChampionScene({
       renderer.dispose();
       renderer.domElement.remove();
     };
-  }, []);
+  }, [label]);
 
   return (
     <div className="scene-shell" ref={containerRef}>

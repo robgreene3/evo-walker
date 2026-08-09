@@ -392,6 +392,44 @@ select {
   height: 540px;
   background: #081019;
 }
+.specimen-ribbon {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 1rem;
+  padding: 11px 14px 11px 20px;
+  border-bottom: 1px solid rgba(255, 200, 87, 0.24);
+  background: linear-gradient(
+    90deg,
+    rgba(255, 200, 87, 0.11),
+    rgba(85, 214, 190, 0.055)
+  );
+}
+.specimen-ribbon > span:first-child {
+  display: grid;
+  gap: 0.15rem;
+}
+.specimen-ribbon strong,
+.specimen-ribbon small,
+.inspection-state {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+.specimen-ribbon strong {
+  color: var(--gold);
+  font-size: 0.72rem;
+}
+.specimen-ribbon small,
+.inspection-state {
+  color: var(--muted);
+  font-size: 0.66rem;
+}
+.inspection-state.ready {
+  color: var(--mint);
+}
+.inspection-state.error {
+  max-width: 260px;
+  color: #ffc1bd;
+}
 .scene-shell canvas {
   display: block;
   width: 100%;
@@ -577,6 +615,9 @@ progress::-moz-progress-bar {
 }
 .archive-cell {
   min-width: 0;
+  min-height: 0;
+  padding: 0;
+  border: 0;
   border-radius: 3px;
   background: rgba(152, 191, 188, 0.055);
 }
@@ -587,6 +628,27 @@ progress::-moz-progress-bar {
     var(--mint)
   );
   box-shadow: 0 0 10px rgba(85, 214, 190, 0.18);
+}
+.archive-cell.occupied:hover {
+  border: 0;
+  background: color-mix(
+    in srgb,
+    #ffe2a6 calc(38% + var(--fitness) * 62%),
+    #80ebd7
+  );
+  transform: scale(1.08);
+}
+.archive-cell.occupied:focus-visible {
+  position: relative;
+  z-index: 1;
+  box-shadow:
+    0 0 0 2px #071016,
+    0 0 0 4px var(--gold);
+}
+.archive-cell.occupied.selected {
+  box-shadow:
+    inset 0 0 0 2px #fff4d8,
+    0 0 15px rgba(255, 200, 87, 0.52);
 }
 
 .inspection-grid {
@@ -845,6 +907,14 @@ footer {
   }
   .panel-heading {
     padding: 17px;
+  }
+  .specimen-ribbon {
+    grid-template-columns: 1fr auto;
+    padding-left: 17px;
+  }
+  .inspection-state {
+    grid-column: 1 / -1;
+    grid-row: 2;
   }
   .scene-shell {
     height: 390px;

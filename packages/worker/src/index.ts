@@ -10,6 +10,7 @@ export { evolveExperiment } from "./evolve-experiment.js";
 export type { EvolutionHooks, EvolutionTerminal } from "./evolve-experiment.js";
 export { exploreExperiment } from "./explore-experiment.js";
 export type { ExplorationHooks } from "./explore-experiment.js";
+export { replayEpisode } from "./replay-episode.js";
 export { WORKER_PROTOCOL_VERSION } from "./protocol.js";
 export type {
   BatchEvaluationRequest,
@@ -29,6 +30,8 @@ export type {
   ExplorationStoppedMessage,
   PauseEvolutionRequest,
   ProgressMessage,
+  ReplayEpisodeCompletedMessage,
+  ReplayEpisodeRequest,
   ResumeEvolutionRequest,
   StartEvolutionRequest,
   StartExplorationRequest,
