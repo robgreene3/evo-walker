@@ -3,7 +3,7 @@ packages:
   - apps/*
 
 allowBuilds:
-  esbuild: set this to true or false
+  esbuild: true
 
 minimumReleaseAge: 1440
 storeDir: .pnpm-store

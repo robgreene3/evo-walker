@@ -18,10 +18,10 @@
     "test:core": "vitest run packages/core",
     "test:sim": "vitest run packages/sim",
     "test:e2e": "playwright test",
-    "benchmark": "vitest run --config vitest.benchmark.config.ts",
+    "benchmark": "pnpm build:packages && vitest run --config vitest.benchmark.config.ts",
     "build:packages": "tsc -b tsconfig.build.json --pretty false",
     "build": "pnpm build:packages && pnpm --filter @evowalker/web build",
-    "verify": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm benchmark && pnpm build && pnpm test:e2e"
+    "verify": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm benchmark && pnpm --filter @evowalker/web build && pnpm test:e2e"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

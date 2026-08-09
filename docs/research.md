@@ -69,3 +69,12 @@ For publication preparation, GitHub's maintained `actions/checkout` and `actions
 repositories document current version-6 workflows compatible with Node 24. The verification
 workflow therefore uses those actions and disables implicit package-manager caching in favor of
 the repository's explicit frozen-lockfile install.
+
+On 2026-08-03, pnpm 11's official build-settings reference documented `allowBuilds` as the
+package-matcher map for explicitly permitting or denying dependency lifecycle scripts and
+documented unlisted scripts as install errors while `strictDepBuilds` remains enabled:
+<https://pnpm.io/settings/build#allowbuilds>. The installed and locked `esbuild@0.28.1` package
+is MIT-licensed, is the single esbuild version required by the pinned Vite toolchain, and exposes
+only its documented binary-selection and validation postinstall. A live full-graph `pnpm audit`
+reported no known vulnerabilities. The narrow `esbuild: true` entry therefore replaces the
+generated unresolved placeholder; no wildcard build permission is enabled.

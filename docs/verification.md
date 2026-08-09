@@ -428,3 +428,40 @@ controller work.
 - Prettier parsed and accepted the workflow YAML as part of that verification. A hosted GitHub
   Actions run is intentionally **UNOBSERVED** until an exact owner, repository name, and
   visibility are confirmed and the local history is pushed.
+
+## Cycle 7: clean-checkout verification repair
+
+- Testable defect: a worktree without generated package `dist/` artifacts fails
+  `pnpm benchmark` and therefore `pnpm verify`, because the Node worker benchmark imports
+  `packages/worker/dist/node-worker.js` before the package build runs. A frozen install also
+  exits nonzero because pnpm generated an unresolved `esbuild` build-policy placeholder.
+- Predicted result: making `pnpm benchmark` build package artifacts first, removing the now
+  redundant package-build step from the later web build, and narrowly allowing the pinned
+  `esbuild` postinstall will make both frozen install and the documented standalone benchmark
+  succeed from a generated-artifact-free copy.
+- Guardrails: no dependency version, lockfile resolution, simulation, benchmark threshold,
+  browser behavior, protected brief, Git history, remote, or deferred feature changes.
+- Falsifier: a frozen install still exits nonzero; `pnpm benchmark` still depends on stale
+  artifacts; the lockfile changes; any automated or browser check regresses; or a dependency
+  other than `esbuild` gains lifecycle-script permission.
+- Research basis: pnpm 11 documents `allowBuilds` as an explicit package-matcher map and treats
+  unlisted lifecycle scripts as errors under the default strict policy. The pinned
+  `esbuild@0.28.1` metadata is MIT, the inspected postinstall selects and validates the platform
+  binary, `pnpm why` finds one version under Vite, and a live full-graph audit reports no known
+  vulnerabilities.
+- Clean-state observation: generated `node_modules` and all package/web `dist/` directories were
+  moved aside to recoverable temporary backups. `pnpm install --frozen-lockfile` then exited 0,
+  reused the locked 200 packages, ran only `esbuild@0.28.1`'s postinstall, and did not change the
+  lockfile. Standalone `pnpm benchmark` first rebuilt all packages and then passed 4 files and 4
+  tests in 31.52 seconds.
+- Consolidated observation: after moving the newly built package outputs aside again,
+  `pnpm verify` passed formatting, lint, strict typecheck, 6 files with 18 tests, package build
+  plus 4 benchmark files with 4 tests in 30.88 seconds, the production web build, and all 3
+  Playwright Chromium journeys in 15.5 seconds. The existing Rapier initialization deprecation
+  and production chunk-size warnings remain non-fatal and unchanged.
+- Manual production observation: a rebuilt production preview completed a seed-42,
+  population-4, generation-1 smoke experiment at aggregate fitness `-0.42446`; browser warning
+  and error logs were empty.
+- Decision: **KEEP**. The documented install, standalone benchmark, and consolidated verification
+  commands now work without warm generated artifacts while retaining pnpm's deny-by-default
+  lifecycle policy for every dependency except the reviewed pinned esbuild package.
