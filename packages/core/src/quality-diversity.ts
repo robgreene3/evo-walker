@@ -6,6 +6,11 @@ import {
   type PeriodicControllerGenome,
 } from "./controller.js";
 import { Mulberry32, type PrngState } from "./prng.js";
+import {
+  DEFAULT_TERRAIN_CONFIG,
+  validateTerrainConfig,
+  type TerrainConfig,
+} from "./terrain.js";
 
 export interface BehaviorDescriptor {
   readonly dutyFactor: number;
@@ -24,6 +29,7 @@ export type QualityDiversityEvaluator = (
 
 export interface QualityDiversityConfig {
   readonly seed: number;
+  readonly terrain: TerrainConfig;
   readonly initialPopulation: number;
   readonly archiveBins: number;
   readonly crossoverRate: number;
@@ -78,6 +84,7 @@ export interface QualityDiversityStep {
 }
 
 export const DEFAULT_QUALITY_DIVERSITY_CONFIG = Object.freeze({
+  terrain: DEFAULT_TERRAIN_CONFIG,
   initialPopulation: 24,
   archiveBins: 8,
   crossoverRate: 0.75,
@@ -120,6 +127,7 @@ export function validateQualityDiversityConfig(
   if (!Number.isSafeInteger(config.seed)) {
     throw new TypeError("Quality-diversity seed must be a safe integer.");
   }
+  validateTerrainConfig(config.terrain);
   if (
     !Number.isInteger(config.initialPopulation) ||
     config.initialPopulation < 4 ||

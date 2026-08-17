@@ -4,10 +4,11 @@ import type {
   PeriodicControllerGenome,
   QualityDiversityConfig,
   QualityDiversitySnapshot,
+  TerrainConfig,
 } from "@evowalker/core";
 import type { EpisodeResult, FitnessComponents } from "@evowalker/sim";
 
-export const WORKER_PROTOCOL_VERSION = 2 as const;
+export const WORKER_PROTOCOL_VERSION = 3 as const;
 export interface BatchEvaluationRequest {
   readonly kind: "evaluate";
   readonly protocolVersion: number;
@@ -19,6 +20,7 @@ export interface ReplayEpisodeRequest {
   readonly protocolVersion: number;
   readonly requestId: string;
   readonly genome: PeriodicControllerGenome;
+  readonly terrain: TerrainConfig;
 }
 export interface CancelEvaluationRequest {
   readonly kind: "cancel";

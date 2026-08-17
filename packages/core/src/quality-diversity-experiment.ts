@@ -6,9 +6,15 @@ import {
   ExperimentImportError,
 } from "./experiment.js";
 import { PRNG_IDENTITY } from "./prng.js";
+import {
+  DEFAULT_TERRAIN_CONFIG,
+  TERRAIN_GENERATOR_VERSION,
+  TERRAIN_KINDS,
+  createTerrainCourse,
+} from "./terrain.js";
 import type { QualityDiversitySnapshot } from "./quality-diversity.js";
 
-export const QUALITY_DIVERSITY_EXPERIMENT_SCHEMA_VERSION = 2 as const;
+export const QUALITY_DIVERSITY_EXPERIMENT_SCHEMA_VERSION = 3 as const;
 export const MAX_QUALITY_DIVERSITY_EXPERIMENT_BYTES = 8_000_000;
 
 const finite = z.number();
@@ -38,7 +44,12 @@ const behaviorSchema = z.strictObject({
   dutyFactor: finite.min(0).max(1),
   diagonalCoordination: finite.min(0).max(1),
 });
-const configSchema = z.strictObject({
+const terrainSchema = z.strictObject({
+  kind: z.enum(TERRAIN_KINDS),
+  seed: safeInteger,
+  generatorVersion: z.literal(TERRAIN_GENERATOR_VERSION),
+});
+const legacyConfigSchema = z.strictObject({
   seed: safeInteger,
   initialPopulation: z.number().int().min(4).max(256),
   archiveBins: z.number().int().min(4).max(32),
@@ -47,6 +58,7 @@ const configSchema = z.strictObject({
   mutationScale: finite.min(0).max(10),
   randomInjectionRate: finite.min(0).max(1),
 });
+const configSchema = legacyConfigSchema.extend({ terrain: terrainSchema });
 const archiveEntrySchema = z.strictObject({
   cellIndex: z.number().int().min(0).max(1_023),
   xIndex: z.number().int().min(0).max(31),
@@ -83,6 +95,9 @@ const snapshotSchema = z.strictObject({
   history: z.array(historySchema).min(1).max(512),
   prng: prngSchema,
 });
+const legacySnapshotSchema = snapshotSchema.extend({
+  config: legacyConfigSchema,
+});
 const fitnessComponentsSchema = z.strictObject({
   forwardProgress: finite,
   uprightBonus: finite,
@@ -99,12 +114,18 @@ const episodeSchema = z.strictObject({
     seed: safeInteger,
     timestepSeconds: finite.positive(),
     substeps: z.literal(1),
+    terrain: terrainSchema,
   }),
   terminatedAtStep: z.number().int().min(0).max(100_000),
   elapsedSeconds: finite.nonnegative(),
   aggregateFitness: finite,
   components: fitnessComponentsSchema,
   gait: behaviorSchema,
+  terrain: z.strictObject({
+    label: z.string().min(1).max(128),
+    obstaclesTotal: z.number().int().min(0).max(128),
+    obstaclesCleared: z.number().int().min(0).max(128),
+  }),
   viable: z.boolean(),
   fallAtStep: z.number().int().min(0).max(100_000).nullable(),
   invalidReason: z.string().min(1).max(512).nullable(),
@@ -131,6 +152,37 @@ const episodeSchema = z.strictObject({
   finalWorldChecksum: z.string().regex(/^[0-9a-f]{8}$/u),
 });
 
+const legacyEpisodeSchema = episodeSchema
+  .omit({ provenance: true, terrain: true })
+  .extend({
+    provenance: z.strictObject({
+      schemaVersion: z.literal(1),
+      rapierBindingVersion: z.literal("0.19.3"),
+      rapierEngineVersion: z.string().min(1).max(64),
+      seed: safeInteger,
+      timestepSeconds: finite.positive(),
+      substeps: z.literal(1),
+    }),
+  });
+
+const legacyV2DocumentSchema = z.strictObject({
+  schemaVersion: z.literal(2),
+  buildVersion: z.literal(EXPERIMENT_BUILD_VERSION),
+  mode: z.literal("continuous-quality-diversity"),
+  prng: z.strictObject({ algorithm: z.literal(PRNG_IDENTITY) }),
+  physics: z.strictObject({
+    rapierBindingVersion: z.literal("0.19.3"),
+    rapierEngineVersion: z.string().min(1).max(64),
+    timestepSeconds: finite.positive(),
+    substeps: z.literal(1),
+    durationSeconds: finite.positive(),
+    settlingSeconds: finite.nonnegative(),
+    snapshotEverySteps: z.number().int().positive().max(100_000),
+  }),
+  snapshot: legacySnapshotSchema,
+  championEpisode: legacyEpisodeSchema.nullable(),
+});
+
 export const qualityDiversityExperimentDocumentSchema = z
   .strictObject({
     schemaVersion: z.literal(QUALITY_DIVERSITY_EXPERIMENT_SCHEMA_VERSION),
@@ -145,6 +197,7 @@ export const qualityDiversityExperimentDocumentSchema = z
       durationSeconds: finite.positive(),
       settlingSeconds: finite.nonnegative(),
       snapshotEverySteps: z.number().int().positive().max(100_000),
+      terrain: terrainSchema,
     }),
     snapshot: snapshotSchema,
     championEpisode: episodeSchema.nullable(),
@@ -224,6 +277,26 @@ export const qualityDiversityExperimentDocumentSchema = z
     ) {
       issue("Physics metadata does not match the champion episode.");
     }
+    if (
+      JSON.stringify(physics.terrain) !==
+        JSON.stringify(snapshot.config.terrain) ||
+      (championEpisode !== null &&
+        JSON.stringify(physics.terrain) !==
+          JSON.stringify(championEpisode.provenance.terrain))
+    ) {
+      issue("Terrain metadata does not match the saved experiment.");
+    }
+    if (championEpisode !== null) {
+      const course = createTerrainCourse(physics.terrain);
+      if (
+        championEpisode.terrain.label !== course.label ||
+        championEpisode.terrain.obstaclesTotal !== course.blocks.length ||
+        championEpisode.terrain.obstaclesCleared >
+          championEpisode.terrain.obstaclesTotal
+      ) {
+        issue("Terrain outcome does not match the generated course.");
+      }
+    }
   });
 
 export type QualityDiversityExperimentDocument = z.infer<
@@ -277,6 +350,7 @@ export function createQualityDiversityExperimentDocument(
       durationSeconds: 6,
       settlingSeconds: 0.75,
       snapshotEverySteps: 12,
+      terrain: snapshot.config.terrain,
     },
     snapshot,
     championEpisode: parsedEpisode,
@@ -313,10 +387,52 @@ export function parseQualityDiversityExperimentJson(
     value !== null &&
     typeof value === "object" &&
     "schemaVersion" in value &&
+    value.schemaVersion === 2
+  ) {
+    const legacyResult = legacyV2DocumentSchema.safeParse(value);
+    if (!legacyResult.success) {
+      const first = legacyResult.error.issues[0];
+      throw new ExperimentImportError(
+        first === undefined
+          ? "Schema-v2 experiment migration validation failed."
+          : `Schema-v2 experiment migration validation failed: ${first.message}`,
+      );
+    }
+    const legacy = legacyResult.data;
+    const terrain = DEFAULT_TERRAIN_CONFIG;
+    return validateDocument({
+      ...legacy,
+      schemaVersion: QUALITY_DIVERSITY_EXPERIMENT_SCHEMA_VERSION,
+      physics: { ...legacy.physics, terrain },
+      snapshot: {
+        ...legacy.snapshot,
+        config: { ...legacy.snapshot.config, terrain },
+      },
+      championEpisode:
+        legacy.championEpisode === null
+          ? null
+          : {
+              ...legacy.championEpisode,
+              provenance: {
+                ...legacy.championEpisode.provenance,
+                terrain,
+              },
+              terrain: {
+                label: "Flat proving ground",
+                obstaclesTotal: 0,
+                obstaclesCleared: 0,
+              },
+            },
+    });
+  }
+  if (
+    value !== null &&
+    typeof value === "object" &&
+    "schemaVersion" in value &&
     value.schemaVersion !== QUALITY_DIVERSITY_EXPERIMENT_SCHEMA_VERSION
   ) {
     throw new ExperimentImportError(
-      `Unsupported experiment schema version: ${String(value.schemaVersion)}. EvoWalker archive mode requires version 2.`,
+      `Unsupported experiment schema version: ${String(value.schemaVersion)}. EvoWalker archive mode requires version 3.`,
     );
   }
   return validateDocument(value);

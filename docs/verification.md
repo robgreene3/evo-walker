@@ -632,3 +632,55 @@ adding more rendering or simulation dependencies.
   repeatable release evidence. This qualifies browser functionality and responsiveness, not
   cross-engine bitwise physics identity; the public `1e-9` numerical policy remains honest until
   directly compared episode evidence exists.
+
+## Cycle 11: deterministic terrain selection pressure
+
+- User-visible slice: let users evolve and replay the unchanged eight-joint quadruped on a flat
+  proving ground, gentle rise, low curb trail, or shallow uneven trail, with the exact course
+  preserved across workers and checkpoints.
+- Baseline: the quality-diversity archive ran only on an infinite flat plane. Level-ground gaits
+  were reproducible and inspectable, but viewing did not expose adaptation to changing physical
+  demands.
+- Testable hypothesis: bounded seeded terrain can make controller evolution visibly more dynamic
+  while preserving deterministic reset/replay, useful selection signal, and the flat baseline.
+- Predicted result: for each non-flat course, a seed-42 run with 24 founders plus 96 advances finds
+  a complete viable champion moving at least `0.25` metres, crossing at least one feature,
+  occupying at least three gait niches, and replaying exactly.
+- Guardrails: fixed body, eight-joint periodic genome, fitness equation and weights, search
+  operators, six-second episode, timestep, canonical flat benchmarks, and no backend/telemetry.
+  “Features cleared” is displayed evidence and is not added to fitness.
+- Falsifier: a course has no viable feature-crossing controller within the declared budget,
+  reset/replay differs, direct/worker terrain differs, persisted terrain changes on restore, or
+  the rendered geometry is not generated from the same immutable course description.
+- Bounded revisions: the first ramp extended beyond the six-second locomotion envelope, so only
+  its length was shortened. Initial curb geometry overlapped the creature's settling stance, so
+  the first feature was moved ahead and lowered. The first uneven boundary was similarly moved
+  just beyond the stance. No controller, body, fitness, or search parameter changed.
+- Targeted benchmark observation: all three non-flat courses passed exact replay and selection
+  gates after 120 evaluations each. Gentle rise reached `1.3730 m`, cleared `1/1`, and occupied 5
+  niches; curb trail reached `1.2844 m`, cleared `1/2`, and occupied 15 niches; uneven trail
+  reached `1.0306 m`, cleared `1/5`, and occupied 12 niches. The test completed in 35.84 seconds.
+- Persistence observation: schema v3 records terrain kind, seed, and generator version in search,
+  physics, and episode provenance; inconsistent copies fail strict validation. A valid schema-v2
+  archive migrates explicitly to flat terrain, while malformed v2 and unsupported v1 inputs fail
+  without replacing current state.
+- Browser observation: the production terrain save/restore journey passed Chromium, Firefox, and
+  WebKit in 32.2 seconds. It ran a seed-99 uneven course, observed an occupied archive and feature
+  counts, saved, started flat, restored, and recovered the uneven terrain plus course seed without
+  console or page errors.
+- Live visual observation: the production UI on an uneven seed-99 course remained responsive past
+  122 complete evaluations. It displayed a viable `1.27648` champion with `1.0989 m` forward
+  progress, full-trial stability, `1/5` features cleared, four occupied niches, course controls,
+  physical terrain, controller genes, fitness components, and ancestry without a runtime error.
+- Consolidated local observation: Node 24.14.0 passed Prettier, ESLint, strict TypeScript, all 11
+  source-test files with 32 tests, all 5 benchmark files, and the Vite production build. Protected
+  brief hashes match Cycle 1; `git diff --check` passes; application source contains no
+  `Math.random()` call. Vite retains its existing large-chunk advisory, and Rapier retains its
+  non-fatal initialization deprecation notice.
+- Verification limit: a final rerun of the complete 18-entry browser matrix, including the
+  unchanged 720-evaluation soak, was blocked by the execution environment's external credit
+  limit. The new terrain journey itself passed all three engines; Cycle 10 remains the most recent
+  full-matrix and soak evidence.
+- Decision: **KEEP**. The result adds visible environmental pressure and a longer experimental
+  path while retaining controller-first causal clarity. The next bounded improvement should test
+  cross-course transfer or curricula before morphology genes.

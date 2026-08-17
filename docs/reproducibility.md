@@ -10,6 +10,7 @@
 - fixed timestep 1/120 second; one substep
 - 0.75-second unscored settling interval; 5.25-second scored interval; 6-second total
 - fixed one-torso/four-two-segment-leg morphology; eight periodic joint controllers
+- deterministic terrain generator v1: flat, gentle rise, curb trail, and uneven trail
 
 For an unchanged build in the supported runtime, a fresh episode and reset/replay must terminate
 at 720 steps, contain no non-finite state, reproduce all components/frames exactly, and produce
@@ -25,12 +26,19 @@ behavior coordinates are contact duty factor and diagonal coordination, each in 
 
 Checkpoint tests compare an uninterrupted 40-step quality-diversity session to one restored after
 17 steps and require exact snapshot equality. Worker tests make the same comparison through the
-simulation boundary. Schema v2 stores enough state to continue exactly in the supported build.
+simulation boundary. Schema v3 stores the selected terrain and its generator version in addition
+to enough state to continue exactly in the supported build.
 
 The canonical improvement benchmark uses seeds 7, 42, and 99, 24 founders, an 8×8 archive, and
 128 offspring trials. It requires non-regression for every seed, at least two seeds improving by
 `0.1`, mean improvement of at least `0.4`, at least six additional viable niches per run, and a
 valid non-falling champion moving at least `0.1` metres.
+
+The mild-terrain selection-signal gate holds seed 42, the fixed quadruped, periodic controller,
+fitness weights, 24 founders, and 96 subsequent trials constant. For each non-flat course it
+requires a viable champion with at least `0.25` metres progress, one crossed terrain feature,
+three occupied gait niches, and an exactly repeating episode. This establishes a learnable
+controller-first challenge, not robust generalization to unseen courses.
 
 ## Fitness and viability
 

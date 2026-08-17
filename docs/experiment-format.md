@@ -1,13 +1,15 @@
 # Experiment format
 
-## Current format: version 2
+## Current format: version 3
 
 EvoWalker exports strict UTF-8 JSON up to 8,000,000 bytes. The root contains:
 
-- `schemaVersion: 2`, `buildVersion`, and mode `continuous-quality-diversity`;
+- `schemaVersion: 3`, `buildVersion`, and mode `continuous-quality-diversity`;
 - PRNG identity plus the checkpointed `mulberry32-v1` uint32 state;
 - Rapier binding/engine version, fixed timestep, substeps, duration, settling interval, and
   replay snapshot cadence;
+- terrain kind, course seed, and generator version in physics, search configuration, and episode
+  provenance, plus the displayed terrain label and crossed/total feature counts;
 - quality-diversity configuration, evaluation count, occupied archive cells, current champion,
   bounded lineage and history, and PRNG snapshot;
 - an optional champion episode with provenance, every fitness component, gait descriptor,
@@ -31,12 +33,15 @@ the current archive and evolution state remain complete.
 ## Compatibility
 
 Version 1 represented the earlier finite generational GA and did not contain a resumable
-population/PRNG state. Version 2 deliberately rejects it with recovery guidance. Use the tagged
-`controller-first-mvp` build to inspect a v1 file, keep the original export, or implement a tested
-explicit migration later. EvoWalker never guesses at incompatible experiment meaning.
+population/PRNG state. Version 3 rejects it with recovery guidance. A valid version-2 archive is
+explicitly migrated to the version-3 flat proving ground because flat terrain was the only
+possible version-2 environment; malformed version-2 input is rejected before state replacement.
+Keep the original export, or use the tagged `controller-first-mvp` build to inspect a v1 file.
+EvoWalker never guesses at incompatible experiment meaning.
 
 ## Storage
 
-“Save local” uses `evowalker:experiment:v2`; “Export JSON” downloads the same validated document.
-Load/import validates the entire input before replacing state. Clearing site data removes the
-local save but cannot remove an exported file.
+“Save local” uses `evowalker:experiment:v3`; “Export JSON” downloads the same validated document.
+On first access, the app may read a legacy `evowalker:experiment:v2` entry and migrate it without
+deleting that fallback. Load/import validates the entire input before replacing state. Clearing
+site data removes local saves but cannot remove an exported file.

@@ -2,7 +2,11 @@ import {
   QualityDiversitySession,
   type PeriodicControllerGenome,
 } from "@evowalker/core";
-import { runDeterministicEpisode, type EpisodeResult } from "@evowalker/sim";
+import {
+  DEFAULT_EPISODE_CONFIG,
+  runDeterministicEpisode,
+  type EpisodeResult,
+} from "@evowalker/sim";
 
 import {
   WORKER_PROTOCOL_VERSION,
@@ -33,10 +37,14 @@ export async function exploreExperiment(
 ): Promise<ExplorationStoppedMessage> {
   validateRequest(request);
   const episodes = new WeakMap<PeriodicControllerGenome, EpisodeResult>();
+  const episodeConfig = Object.freeze({
+    ...DEFAULT_EPISODE_CONFIG,
+    terrain: request.config.terrain,
+  });
   const session = new QualityDiversitySession(
     request.config,
     (genome) => {
-      const episode = runDeterministicEpisode(genome);
+      const episode = runDeterministicEpisode(genome, episodeConfig);
       episodes.set(genome, episode);
       return {
         fitness: episode.aggregateFitness,
@@ -52,7 +60,7 @@ export async function exploreExperiment(
     if (champion === null) return null;
     const retained = episodes.get(champion.genome);
     if (retained !== undefined) return retained;
-    const replay = runDeterministicEpisode(champion.genome);
+    const replay = runDeterministicEpisode(champion.genome, episodeConfig);
     episodes.set(champion.genome, replay);
     return replay;
   };

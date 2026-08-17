@@ -197,7 +197,7 @@ h2 {
 }
 .experiment-controls {
   display: grid;
-  grid-template-columns: repeat(3, 108px);
+  grid-template-columns: repeat(5, 108px);
   gap: 0.65rem;
 }
 label {
@@ -532,6 +532,7 @@ progress::-moz-progress-bar {
   font-size: 0.72rem;
 }
 .metric-cards strong {
+  overflow-wrap: anywhere;
   font:
     500 1.2rem "DM Mono",
     monospace;

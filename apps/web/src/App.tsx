@@ -1,5 +1,7 @@
 import {
   DEFAULT_QUALITY_DIVERSITY_CONFIG,
+  TERRAIN_GENERATOR_VERSION,
+  TERRAIN_KINDS,
   MAX_QUALITY_DIVERSITY_EXPERIMENT_BYTES,
   PRNG_IDENTITY,
   createQualityDiversityExperimentDocument,
@@ -8,6 +10,8 @@ import {
   type QualityDiversityArchiveEntry,
   type QualityDiversityLineageRecord,
   type QualityDiversitySnapshot,
+  type TerrainConfig,
+  type TerrainKind,
 } from "@evowalker/core";
 import type { EpisodeResult, FitnessComponents } from "@evowalker/sim";
 import {
@@ -38,14 +42,19 @@ interface EditableConfig {
   readonly seed: number;
   readonly initialPopulation: number;
   readonly archiveBins: number;
+  readonly terrainKind: TerrainKind;
+  readonly terrainSeed: number;
 }
 
 const INITIAL_CONFIG: EditableConfig = {
   seed: 42,
   initialPopulation: DEFAULT_QUALITY_DIVERSITY_CONFIG.initialPopulation,
   archiveBins: DEFAULT_QUALITY_DIVERSITY_CONFIG.archiveBins,
+  terrainKind: "flat",
+  terrainSeed: 42,
 };
-const LOCAL_STORAGE_KEY = "evowalker:experiment:v2";
+const LOCAL_STORAGE_KEY = "evowalker:experiment:v3";
+const LEGACY_LOCAL_STORAGE_KEY = "evowalker:experiment:v2";
 
 const STATUS_TEXT: Readonly<Record<ExperimentStatus, string>> = {
   initial: "Ready to cultivate a deterministic gait archive.",
@@ -74,7 +83,10 @@ const JOINT_NAMES = [
 
 function localSaveExists(): boolean {
   try {
-    return localStorage.getItem(LOCAL_STORAGE_KEY) !== null;
+    return (
+      localStorage.getItem(LOCAL_STORAGE_KEY) !== null ||
+      localStorage.getItem(LEGACY_LOCAL_STORAGE_KEY) !== null
+    );
   } catch {
     return false;
   }
@@ -166,6 +178,12 @@ export function App() {
   const statusRef = useRef<ExperimentStatus>("initial");
   const episodeRef = useRef<EpisodeResult | null>(null);
   const archiveSizeRef = useRef(0);
+  const editableTerrain: TerrainConfig = {
+    kind: config.terrainKind,
+    seed: config.terrainSeed,
+    generatorVersion: TERRAIN_GENERATOR_VERSION,
+  };
+  const experimentTerrain = snapshot?.config.terrain ?? editableTerrain;
 
   const transition = useCallback((next: ExperimentStatus) => {
     statusRef.current = next;
@@ -187,64 +205,71 @@ export function App() {
     setReplayToken((token) => token + 1);
   }, []);
 
-  const inspectEntry = useCallback((entry: QualityDiversityArchiveEntry) => {
-    inspectionWorkerRef.current?.terminate();
-    const worker = new Worker(
-      new URL(
-        "../../../packages/worker/src/browser-worker.ts",
-        import.meta.url,
-      ),
-      { type: "module", name: "evowalker-gait-inspection" },
-    );
-    const requestId = `gait-${entry.lineageId}-${String(++inspectionSequence.current)}`;
-    setSelectedEntry(entry);
-    setInspectionEpisode(null);
-    setInspectionState("loading");
-    setInspectionError(null);
-    worker.addEventListener(
-      "message",
-      ({ data }: MessageEvent<WorkerResponse>) => {
-        if (data.requestId !== requestId) return;
-        if (data.kind === "error") {
-          setInspectionState("error");
-          setInspectionError(data.message);
-          return;
-        }
-        if (data.kind !== "replay-completed") return;
-        const fitnessMatches =
-          Math.abs(data.episode.aggregateFitness - entry.fitness) <= 1e-9;
-        const behaviorMatches =
-          Math.abs(data.episode.gait.dutyFactor - entry.behavior.dutyFactor) <=
-            1e-9 &&
-          Math.abs(
-            data.episode.gait.diagonalCoordination -
-              entry.behavior.diagonalCoordination,
-          ) <= 1e-9;
-        if (!fitnessMatches || !behaviorMatches || !data.episode.viable) {
-          setInspectionState("error");
-          setInspectionError(
-            "This specimen did not reproduce its archived score and was not displayed.",
-          );
-          return;
-        }
-        setInspectionEpisode(data.episode);
-        setInspectionState("ready");
-        setReplayToken((token) => token + 1);
-      },
-    );
-    worker.addEventListener("error", (event) => {
-      setInspectionState("error");
-      setInspectionError(event.message || "The gait inspection worker failed.");
-    });
-    inspectionWorkerRef.current = worker;
-    const request: ReplayEpisodeRequest = {
-      kind: "replay",
-      protocolVersion: WORKER_PROTOCOL_VERSION,
-      requestId,
-      genome: entry.genome,
-    };
-    worker.postMessage(request);
-  }, []);
+  const inspectEntry = useCallback(
+    (entry: QualityDiversityArchiveEntry) => {
+      inspectionWorkerRef.current?.terminate();
+      const worker = new Worker(
+        new URL(
+          "../../../packages/worker/src/browser-worker.ts",
+          import.meta.url,
+        ),
+        { type: "module", name: "evowalker-gait-inspection" },
+      );
+      const requestId = `gait-${entry.lineageId}-${String(++inspectionSequence.current)}`;
+      setSelectedEntry(entry);
+      setInspectionEpisode(null);
+      setInspectionState("loading");
+      setInspectionError(null);
+      worker.addEventListener(
+        "message",
+        ({ data }: MessageEvent<WorkerResponse>) => {
+          if (data.requestId !== requestId) return;
+          if (data.kind === "error") {
+            setInspectionState("error");
+            setInspectionError(data.message);
+            return;
+          }
+          if (data.kind !== "replay-completed") return;
+          const fitnessMatches =
+            Math.abs(data.episode.aggregateFitness - entry.fitness) <= 1e-9;
+          const behaviorMatches =
+            Math.abs(
+              data.episode.gait.dutyFactor - entry.behavior.dutyFactor,
+            ) <= 1e-9 &&
+            Math.abs(
+              data.episode.gait.diagonalCoordination -
+                entry.behavior.diagonalCoordination,
+            ) <= 1e-9;
+          if (!fitnessMatches || !behaviorMatches || !data.episode.viable) {
+            setInspectionState("error");
+            setInspectionError(
+              "This specimen did not reproduce its archived score and was not displayed.",
+            );
+            return;
+          }
+          setInspectionEpisode(data.episode);
+          setInspectionState("ready");
+          setReplayToken((token) => token + 1);
+        },
+      );
+      worker.addEventListener("error", (event) => {
+        setInspectionState("error");
+        setInspectionError(
+          event.message || "The gait inspection worker failed.",
+        );
+      });
+      inspectionWorkerRef.current = worker;
+      const request: ReplayEpisodeRequest = {
+        kind: "replay",
+        protocolVersion: WORKER_PROTOCOL_VERSION,
+        requestId,
+        genome: entry.genome,
+        terrain: experimentTerrain,
+      };
+      worker.postMessage(request);
+    },
+    [experimentTerrain],
+  );
 
   const receive = useCallback(
     ({ data }: MessageEvent<WorkerResponse>) => {
@@ -360,6 +385,7 @@ export function App() {
         ...DEFAULT_QUALITY_DIVERSITY_CONFIG,
         initialPopulation: config.initialPopulation,
         archiveBins: config.archiveBins,
+        terrain: editableTerrain,
       },
     };
     const request: StartExplorationRequest =
@@ -387,6 +413,8 @@ export function App() {
       seed: document.snapshot.config.seed,
       initialPopulation: document.snapshot.config.initialPopulation,
       archiveBins: document.snapshot.config.archiveBins,
+      terrainKind: document.snapshot.config.terrain.kind,
+      terrainSeed: document.snapshot.config.terrain.seed,
     });
     setSnapshot(document.snapshot);
     archiveSizeRef.current = document.snapshot.archive.length;
@@ -423,9 +451,11 @@ export function App() {
 
   const loadLocal = () => {
     try {
-      const serialized = localStorage.getItem(LOCAL_STORAGE_KEY);
+      const serialized =
+        localStorage.getItem(LOCAL_STORAGE_KEY) ??
+        localStorage.getItem(LEGACY_LOCAL_STORAGE_KEY);
       if (serialized === null)
-        throw new Error("No version-2 EvoWalker save was found.");
+        throw new Error("No EvoWalker checkpoint was found.");
       restoreDocument(parseQualityDiversityExperimentJson(serialized));
     } catch (error) {
       setErrorMessage(
@@ -449,7 +479,7 @@ export function App() {
       link.download = `evowalker-seed-${String(config.seed)}-evaluation-${String(snapshot?.evaluations ?? 0)}.json`;
       link.click();
       URL.revokeObjectURL(url);
-      setPersistenceMessage("Exported a validated version-2 checkpoint.");
+      setPersistenceMessage("Exported a validated version-3 checkpoint.");
     } catch (error) {
       setPersistenceMessage(
         error instanceof Error ? error.message : "The JSON export failed.",
@@ -471,7 +501,7 @@ export function App() {
         error instanceof Error ? error.message : "The JSON import failed.",
       );
       setPersistenceMessage(
-        "The current experiment was kept. Choose a valid EvoWalker schema-v2 JSON file.",
+        "The current experiment was kept. Choose a valid EvoWalker schema-v2 or schema-v3 JSON file.",
       );
       transition("error");
     }
@@ -502,7 +532,11 @@ export function App() {
   const lineage = ancestry(snapshot, displayedEntry?.lineageId ?? null);
 
   return (
-    <div className="app-frame" data-status={status}>
+    <div
+      className="app-frame"
+      data-status={status}
+      data-terrain={experimentTerrain.kind}
+    >
       <header className="masthead">
         <a className="brand" href="#main-content" aria-label="EvoWalker home">
           <span className="brand-mark" aria-hidden="true">
@@ -577,6 +611,45 @@ export function App() {
                   setConfig({
                     ...config,
                     archiveBins: event.currentTarget.valueAsNumber,
+                  });
+                }}
+              />
+            </label>
+            <label>
+              Terrain
+              <select
+                value={config.terrainKind}
+                disabled={activeWorker}
+                onChange={(event) => {
+                  setConfig({
+                    ...config,
+                    terrainKind: event.currentTarget.value as TerrainKind,
+                  });
+                }}
+              >
+                {TERRAIN_KINDS.map((kind) => (
+                  <option key={kind} value={kind}>
+                    {kind === "flat"
+                      ? "Flat ground"
+                      : kind === "gentle-ramp"
+                        ? "Gentle rise"
+                        : kind === "curb-trail"
+                          ? "Curb trail"
+                          : "Uneven trail"}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Course seed
+              <input
+                type="number"
+                value={config.terrainSeed}
+                disabled={activeWorker}
+                onChange={(event) => {
+                  setConfig({
+                    ...config,
+                    terrainSeed: event.currentTarget.valueAsNumber,
                   });
                 }}
               />
@@ -671,7 +744,7 @@ export function App() {
             <strong>Deterministic checkpoint</strong>
             <small role="status" aria-live="polite">
               {persistenceMessage ??
-                "Schema v2 · archive and PRNG state · validated before replacement"}
+                "Schema v3 · terrain, archive, and PRNG state · validated before replacement"}
             </small>
           </div>
           <div className="persistence-controls">
@@ -781,6 +854,7 @@ export function App() {
             )}
             <ChampionScene
               episode={displayEpisode}
+              terrain={experimentTerrain}
               playbackSpeed={playbackSpeed}
               replayToken={replayToken}
               label={
@@ -827,6 +901,18 @@ export function App() {
                 <span>Stability</span>
                 <strong>
                   {displayEpisode?.viable === true ? "full trial" : "—"}
+                </strong>
+              </div>
+              <div>
+                <span>Terrain</span>
+                <strong>{displayEpisode?.terrain.label ?? "—"}</strong>
+              </div>
+              <div>
+                <span>Cleared</span>
+                <strong>
+                  {displayEpisode === null
+                    ? "—"
+                    : `${String(displayEpisode.terrain.obstaclesCleared)}/${String(displayEpisode.terrain.obstaclesTotal)}`}
                 </strong>
               </div>
             </div>

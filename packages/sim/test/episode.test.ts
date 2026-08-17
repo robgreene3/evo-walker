@@ -1,4 +1,8 @@
-import { createSeededController } from "@evowalker/core";
+import {
+  DEFAULT_TERRAIN_CONFIG,
+  TERRAIN_KINDS,
+  createSeededController,
+} from "@evowalker/core";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -88,6 +92,23 @@ describe("deterministic articulated creature episode", () => {
       expect(replay).toEqual(first);
     } finally {
       episode.dispose();
+    }
+  });
+
+  it("repeats seeded terrain episodes without state leakage", () => {
+    for (const kind of TERRAIN_KINDS.filter((value) => value !== "flat")) {
+      const config = {
+        ...DEFAULT_EPISODE_CONFIG,
+        terrain: { ...DEFAULT_TERRAIN_CONFIG, kind, seed: 42 },
+      };
+      const controller = createSeededController(42);
+      const first = runDeterministicEpisode(controller, config);
+      const replay = runDeterministicEpisode(controller, config);
+
+      expect(replay).toEqual(first);
+      expect(first.terrain.label.length).toBeGreaterThan(0);
+      expect(first.terrain.obstaclesTotal).toBeGreaterThan(0);
+      expectFiniteResult(first);
     }
   });
 

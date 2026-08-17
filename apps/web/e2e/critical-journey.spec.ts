@@ -199,6 +199,47 @@ test("replays a gait-atlas specimen while evolution continues", async ({
   expect(runtimeErrors).toEqual([]);
 });
 
+test("runs and restores a seeded physical terrain course", async ({ page }) => {
+  const runtimeErrors = recordRuntimeErrors(page);
+  await page.goto("/");
+  await configure(page, 8, 4);
+  await page
+    .getByRole("combobox", { name: "Terrain", exact: true })
+    .selectOption({ label: "Uneven trail" });
+  await page.getByLabel("Course seed", { exact: true }).fill("99");
+  await page
+    .getByRole("button", { name: "Begin evolution", exact: true })
+    .click();
+  await expect(page.locator(".app-frame")).toHaveAttribute(
+    "data-terrain",
+    "uneven-trail",
+  );
+  await expect(page.locator(".archive-cell.occupied").first()).toBeVisible();
+  await stopExploration(page);
+  await expect(page.locator(".metric-cards")).toContainText("Uneven trail");
+  await expect(page.locator(".metric-cards")).toContainText(/\d+\/5/u);
+  await page.getByRole("button", { name: "Save local", exact: true }).click();
+
+  await page
+    .getByRole("combobox", { name: "Terrain", exact: true })
+    .selectOption({ label: "Flat ground" });
+  await page.getByRole("button", { name: "Start fresh", exact: true }).click();
+  await expect(page.locator(".app-frame")).toHaveAttribute(
+    "data-terrain",
+    "flat",
+  );
+  await stopExploration(page);
+  await page.getByRole("button", { name: "Load local", exact: true }).click();
+  await expect(
+    page.getByRole("combobox", { name: "Terrain", exact: true }),
+  ).toHaveValue("uneven-trail");
+  await expect(
+    page.getByRole("spinbutton", { name: "Course seed", exact: true }),
+  ).toHaveValue("99");
+  await expect(page.locator(".metric-cards")).toContainText("Uneven trail");
+  expect(runtimeErrors).toEqual([]);
+});
+
 test("sustains 720 evaluations with responsive checkpoint recovery", async ({
   page,
 }, testInfo) => {

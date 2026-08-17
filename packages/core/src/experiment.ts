@@ -212,7 +212,24 @@ export function createExperimentDocument(
   snapshot: ControllerEvolutionSnapshot,
   championEpisode: unknown,
 ): ExperimentDocument {
-  const parsedEpisode = episodeSchema.parse(championEpisode);
+  let legacyEpisode = championEpisode;
+  if (championEpisode !== null && typeof championEpisode === "object") {
+    const episodeRecord = championEpisode as Record<string, unknown>;
+    const provenance = episodeRecord["provenance"];
+    const episodeWithoutTerrain = Object.fromEntries(
+      Object.entries(episodeRecord).filter(([key]) => key !== "terrain"),
+    );
+    if (provenance !== null && typeof provenance === "object") {
+      const legacyProvenance = Object.fromEntries(
+        Object.entries(provenance).filter(([key]) => key !== "terrain"),
+      );
+      legacyEpisode = {
+        ...episodeWithoutTerrain,
+        provenance: legacyProvenance,
+      };
+    }
+  }
+  const parsedEpisode = episodeSchema.parse(legacyEpisode);
   return validateDocument({
     schemaVersion: EXPERIMENT_SCHEMA_VERSION,
     buildVersion: EXPERIMENT_BUILD_VERSION,

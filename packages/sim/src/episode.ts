@@ -1,9 +1,13 @@
 import RAPIER from "@dimforge/rapier3d-deterministic-compat";
 import {
   ACTUATED_JOINT_COUNT,
+  DEFAULT_TERRAIN_CONFIG,
+  createTerrainCourse,
   controllerTargetsAt,
   validateControllerGenome,
   type PeriodicControllerGenome,
+  type TerrainConfig,
+  type TerrainCourse,
 } from "@evowalker/core";
 
 await RAPIER.init();
@@ -17,6 +21,7 @@ export interface EpisodeConfig {
   readonly durationSeconds: number;
   readonly settlingSeconds: number;
   readonly snapshotEverySteps: number;
+  readonly terrain: TerrainConfig;
 }
 
 export const DEFAULT_EPISODE_CONFIG: EpisodeConfig = Object.freeze({
@@ -25,6 +30,7 @@ export const DEFAULT_EPISODE_CONFIG: EpisodeConfig = Object.freeze({
   durationSeconds: 6,
   settlingSeconds: 0.75,
   snapshotEverySteps: 12,
+  terrain: DEFAULT_TERRAIN_CONFIG,
 });
 
 export interface VectorSnapshot {
@@ -70,6 +76,13 @@ export interface EpisodeProvenance {
   readonly seed: number;
   readonly timestepSeconds: number;
   readonly substeps: number;
+  readonly terrain: TerrainConfig;
+}
+
+export interface TerrainOutcome {
+  readonly label: string;
+  readonly obstaclesTotal: number;
+  readonly obstaclesCleared: number;
 }
 
 export interface EpisodeResult {
@@ -79,6 +92,7 @@ export interface EpisodeResult {
   readonly aggregateFitness: number;
   readonly components: FitnessComponents;
   readonly gait: GaitDescriptor;
+  readonly terrain: TerrainOutcome;
   readonly viable: boolean;
   readonly fallAtStep: number | null;
   readonly invalidReason: string | null;
@@ -118,6 +132,7 @@ const FITNESS_WEIGHTS = Object.freeze({
 });
 
 function validateConfig(config: EpisodeConfig): void {
+  createTerrainCourse(config.terrain);
   const values = [
     config.timestepSeconds,
     config.durationSeconds,
@@ -163,6 +178,29 @@ function buildWorld(config: EpisodeConfig): WorldState {
     RAPIER.ColliderDesc.cuboid(20, 0.1, 20).setFriction(1.1).setRestitution(0),
     ground,
   );
+
+  const terrain = createTerrainCourse(config.terrain);
+  const terrainBody = world.createRigidBody(RAPIER.RigidBodyDesc.fixed());
+  for (const block of terrain.blocks) {
+    const halfAngle = block.rotationZRadians / 2;
+    world.createCollider(
+      RAPIER.ColliderDesc.cuboid(
+        block.halfExtents.x,
+        block.halfExtents.y,
+        block.halfExtents.z,
+      )
+        .setTranslation(block.center.x, block.center.y, block.center.z)
+        .setRotation({
+          x: 0,
+          y: 0,
+          z: Math.sin(halfAngle),
+          w: Math.cos(halfAngle),
+        })
+        .setFriction(1.1)
+        .setRestitution(0),
+      terrainBody,
+    );
+  }
 
   const torso = world.createRigidBody(
     RAPIER.RigidBodyDesc.dynamic()
@@ -404,6 +442,9 @@ export class DeterministicCreatureEpisode {
 
     const totalSteps =
       this.config.durationSeconds / this.config.timestepSeconds;
+    const terrainCourse: TerrainCourse = createTerrainCourse(
+      this.config.terrain,
+    );
     const settlingSteps =
       this.config.settlingSeconds / this.config.timestepSeconds;
     const frames: EpisodeFrame[] = [
@@ -542,6 +583,9 @@ export class DeterministicCreatureEpisode {
     if (!Number.isFinite(aggregateFitness)) {
       throw new Error("Fitness aggregation produced a non-finite value.");
     }
+    const obstaclesCleared = terrainCourse.blocks.filter(
+      (block) => finalCenter.x >= block.center.x + block.halfExtents.x + 0.02,
+    ).length;
 
     return Object.freeze({
       provenance: Object.freeze({
@@ -551,12 +595,18 @@ export class DeterministicCreatureEpisode {
         seed: this.controller.seed,
         timestepSeconds: this.config.timestepSeconds,
         substeps: this.config.substeps,
+        terrain: Object.freeze({ ...this.config.terrain }),
       }),
       terminatedAtStep,
       elapsedSeconds: terminatedAtStep * this.config.timestepSeconds,
       aggregateFitness,
       components,
       gait,
+      terrain: Object.freeze({
+        label: terrainCourse.label,
+        obstaclesTotal: terrainCourse.blocks.length,
+        obstaclesCleared,
+      }),
       viable,
       fallAtStep,
       invalidReason,

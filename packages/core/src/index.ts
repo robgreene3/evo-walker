@@ -28,6 +28,19 @@ export type {
 export { Mulberry32, PRNG_IDENTITY } from "./prng.js";
 export type { PrngState } from "./prng.js";
 export {
+  DEFAULT_TERRAIN_CONFIG,
+  TERRAIN_GENERATOR_VERSION,
+  TERRAIN_KINDS,
+  createTerrainCourse,
+  validateTerrainConfig,
+} from "./terrain.js";
+export type {
+  TerrainBlock,
+  TerrainConfig,
+  TerrainCourse,
+  TerrainKind,
+} from "./terrain.js";
+export {
   DEFAULT_QUALITY_DIVERSITY_CONFIG,
   QualityDiversitySession,
   validateQualityDiversityConfig,

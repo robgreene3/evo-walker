@@ -52,7 +52,8 @@ describe("quality-diversity experiment persistence", () => {
     );
 
     expect(restored).toEqual(document);
-    expect(restored.schemaVersion).toBe(2);
+    expect(restored.schemaVersion).toBe(3);
+    expect(restored.snapshot.config.terrain.kind).toBe("flat");
     expect(restored.championEpisode?.viable).toBe(true);
     expect(Object.isFrozen(restored.snapshot.archive)).toBe(true);
   });
@@ -63,17 +64,55 @@ describe("quality-diversity experiment persistence", () => {
       serializeQualityDiversityExperimentDocument(document),
     ) as { championEpisode: { aggregateFitness: number } };
     inconsistent.championEpisode.aggregateFitness += 1;
+    const inconsistentTerrain = JSON.parse(
+      serializeQualityDiversityExperimentDocument(document),
+    ) as { championEpisode: { terrain: { obstaclesCleared: number } } };
+    inconsistentTerrain.championEpisode.terrain.obstaclesCleared = 1;
 
     expect(() =>
       parseQualityDiversityExperimentJson('{"schemaVersion":1}'),
-    ).toThrow(/requires version 2/u);
+    ).toThrow(/requires version 3/u);
+    expect(() =>
+      parseQualityDiversityExperimentJson('{"schemaVersion":2}'),
+    ).toThrow(/migration validation failed/u);
     expect(() =>
       parseQualityDiversityExperimentJson(JSON.stringify(inconsistent)),
     ).toThrow(/fitness does not match/u);
+    expect(() =>
+      parseQualityDiversityExperimentJson(JSON.stringify(inconsistentTerrain)),
+    ).toThrow(/terrain outcome does not match/iu);
     expect(() =>
       parseQualityDiversityExperimentJson(
         " ".repeat(MAX_QUALITY_DIVERSITY_EXPERIMENT_BYTES + 1),
       ),
     ).toThrow(/byte limit/u);
+  });
+
+  it("migrates a valid schema-v2 flat experiment without inference", () => {
+    const current = benchmarkDocument();
+    const legacy = structuredClone(current) as unknown as {
+      schemaVersion: number;
+      physics: { terrain?: unknown };
+      snapshot: { config: { terrain?: unknown } };
+      championEpisode: null | {
+        provenance: { terrain?: unknown };
+        terrain?: unknown;
+      };
+    };
+    legacy.schemaVersion = 2;
+    delete legacy.physics.terrain;
+    delete legacy.snapshot.config.terrain;
+    if (legacy.championEpisode !== null) {
+      delete legacy.championEpisode.provenance.terrain;
+      delete legacy.championEpisode.terrain;
+    }
+
+    const migrated = parseQualityDiversityExperimentJson(
+      JSON.stringify(legacy),
+    );
+
+    expect(migrated.schemaVersion).toBe(3);
+    expect(migrated.snapshot.config.terrain.kind).toBe("flat");
+    expect(migrated.championEpisode?.terrain.obstaclesTotal).toBe(0);
   });
 });

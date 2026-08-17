@@ -5,6 +5,11 @@ fixed articulated quadruped runs six-second deterministic physics trials while a
 quality-diversity search evolves only its eight-joint periodic controller. Viable gaits occupy
 an inspectable archive; fallen or invalid candidates never become champions.
 
+Four deterministic proving grounds are available: the verified flat baseline, a gentle seeded
+rise, two low curbs, and a shallow uneven trail. Terrain changes the physical selection pressure
+without changing body topology, controller representation, or fitness weights. The live replay
+renders the same generated colliders used by the simulation and reports crossed features.
+
 The live experience does not end at an arbitrary generation count. Start a seeded archive,
 watch viable gait niches appear, pause or stop at a complete evaluation boundary, replay the
 current champion without renderer resets, or select any occupied archive niche to meet that
@@ -76,8 +81,9 @@ and never mutates experiment state.
 - Fitness is progress plus upright bonus minus fall, actuation, lateral, and invalid penalties.
 - Archive admission additionally requires a complete viable trial; a fallen sprinter cannot win.
 - Gait niches use ground-contact duty factor and diagonal coordination, both clamped to `[0,1]`.
-- Schema-v2 JSON is size-bounded and validated before state replacement. It stores the archive,
-  bounded lineage/history, configuration, and exact PRNG state needed to continue.
+- Schema-v3 JSON is size-bounded and validated before state replacement. It stores the archive,
+  terrain kind/seed/generator version, bounded lineage/history, configuration, and exact PRNG
+  state needed to continue. Valid schema-v2 flat experiments migrate explicitly to version 3.
 - Same-runtime checkpoint continuation is tested exactly. Cross-platform bitwise equality is not
   claimed.
 

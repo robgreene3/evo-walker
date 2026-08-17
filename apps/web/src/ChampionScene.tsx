@@ -1,9 +1,11 @@
 import type { EpisodeResult } from "@evowalker/sim";
+import { createTerrainCourse, type TerrainConfig } from "@evowalker/core";
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
 
 interface ChampionSceneProps {
   readonly episode: EpisodeResult | null;
+  readonly terrain: TerrainConfig;
   readonly playbackSpeed: number;
   readonly replayToken: number;
   readonly label: string;
@@ -69,10 +71,14 @@ function makeBody(id: string): RenderBody {
 
 export function ChampionScene({
   episode,
+  terrain,
   playbackSpeed,
   replayToken,
   label,
 }: ChampionSceneProps) {
+  const terrainKind = terrain.kind;
+  const terrainSeed = terrain.seed;
+  const terrainGeneratorVersion = terrain.generatorVersion;
   const containerRef = useRef<HTMLDivElement>(null);
   const activeEpisodeRef = useRef<EpisodeResult | null>(episode);
   const queuedEpisodeRef = useRef<EpisodeResult | null>(episode);
@@ -143,6 +149,32 @@ export function ChampionScene({
     const grid = new THREE.GridHelper(40, 80, 0x4b9f91, 0x17383a);
     grid.position.y = 0.006;
     scene.add(grid);
+
+    const terrainCourse = createTerrainCourse({
+      kind: terrainKind,
+      seed: terrainSeed,
+      generatorVersion: terrainGeneratorVersion,
+    });
+    const terrainMaterial = new THREE.MeshStandardMaterial({
+      color: 0x254842,
+      roughness: 0.76,
+      metalness: 0.08,
+    });
+    const terrainMeshes = terrainCourse.blocks.map((block) => {
+      const geometry = new THREE.BoxGeometry(
+        block.halfExtents.x * 2,
+        block.halfExtents.y * 2,
+        block.halfExtents.z * 2,
+      );
+      const mesh = new THREE.Mesh(geometry, terrainMaterial);
+      mesh.name = block.id;
+      mesh.position.set(block.center.x, block.center.y, block.center.z);
+      mesh.rotation.z = block.rotationZRadians;
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      scene.add(mesh);
+      return mesh;
+    });
 
     const meshes = new Map<string, THREE.Group>();
     const bodyGeometries: THREE.BufferGeometry[] = [];
@@ -398,12 +430,16 @@ export function ChampionScene({
       kneeMaterial.dispose();
       ground.geometry.dispose();
       ground.material.dispose();
+      terrainMeshes.forEach((mesh) => {
+        mesh.geometry.dispose();
+      });
+      terrainMaterial.dispose();
       trailGeometry.dispose();
       (trail.material as THREE.Material).dispose();
       renderer.dispose();
       renderer.domElement.remove();
     };
-  }, [label]);
+  }, [label, terrainGeneratorVersion, terrainKind, terrainSeed]);
 
   return (
     <div className="scene-shell" ref={containerRef}>

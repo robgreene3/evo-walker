@@ -1,5 +1,8 @@
 import { defineConfig, devices } from "@playwright/test";
 
+const e2ePort = process.env["EVOWALKER_E2E_PORT"] ?? "4173";
+const baseURL = `http://127.0.0.1:${e2ePort}`;
+
 export default defineConfig({
   testDir: "./apps/web/e2e",
   fullyParallel: false,
@@ -9,7 +12,7 @@ export default defineConfig({
   expect: { timeout: 30_000 },
   reporter: "line",
   use: {
-    baseURL: "http://127.0.0.1:4173",
+    baseURL,
     trace: "retain-on-failure",
   },
   projects: [
@@ -27,9 +30,8 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command:
-      "pnpm --filter @evowalker/web build && pnpm --filter @evowalker/web preview --host 127.0.0.1",
-    url: "http://127.0.0.1:4173",
+    command: `pnpm --filter @evowalker/web build && pnpm --filter @evowalker/web preview --host 127.0.0.1 --port ${e2ePort}`,
+    url: baseURL,
     reuseExistingServer: true,
     timeout: 60_000,
   },

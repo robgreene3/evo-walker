@@ -110,3 +110,37 @@ behavior embeddings could reduce evaluations or enlarge expressivity in other do
 they would add hidden state, dependencies, and harder checkpoint semantics before measured need.
 The next research trigger is archive saturation, measured throughput pressure, or an explicitly
 authorized morphology phase—not novelty alone.
+
+## 2026-08-09 terrain and morphology staging delta
+
+### Documented
+
+- Rapier box colliders expose explicit half-extents, translation, and rotation, allowing the
+  renderer and simulation to consume one immutable course description:
+  <https://rapier.rs/docs/user_guides/javascript/colliders/>.
+- Enhanced POET demonstrates paired environment/agent generation as a route toward increasingly
+  difficult challenges, but depends on transfer and environment-admission mechanisms absent from
+  this MVP: <https://proceedings.mlr.press/v119/wang20l.html>.
+- DERL studies morphology and control learning across diverse environments; it supports treating
+  environmental diversity as consequential, not introducing simultaneous body genes before an
+  environment-only intervention is measurable: <https://arxiv.org/abs/2102.02202>.
+- Modular controller work for diverse morphologies addresses controller transfer after topology
+  variation exists, a later problem than EvoWalker's fixed-body terrain gate:
+  <https://arxiv.org/abs/2306.09358>.
+- Multi-environment MAP-Elites formalizes niches across environments, but adds a second archive
+  dimension and evaluation cost that are not yet justified by a single-course user control:
+  <https://arxiv.org/abs/2007.05352>.
+
+### Supported recommendation
+
+Introduce bounded deterministic terrain first and hold the body, controller, fitness, and search
+operators fixed. This produces visible physical variety and a falsifiable selection-pressure test
+without making cause and effect opaque. Seed/version the generator, preserve flat ground as the
+compatibility baseline, and require exact replay plus a viable feature-clearing champion.
+
+### Deferred trigger
+
+Before morphology genes, add evidence for cross-course evaluation or a bounded curriculum if users
+need transferable rather than course-specialized gaits. Morphology becomes justified only when
+fixed-body archives repeatedly saturate or fail across validated courses and the new representation
+can define structural validity, repair, fair comparison, and persisted replay unambiguously.

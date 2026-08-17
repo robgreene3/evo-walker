@@ -305,7 +305,8 @@ Populate this section after inspecting or creating the repository. Keep only sta
   Firefox, and WebKit; current source tests, production build, desktop/mobile critical journey,
   720-evaluation sustained run, and live browser pass.
 - Current experiment: fixed eight-joint quadruped; six-second episode; continuous deterministic
-  MAP-Elites-style controller archive; schema-v2 resumable checkpoints.
+  MAP-Elites-style controller archive; deterministic terrain generator v1; schema-v3 resumable
+  checkpoints with explicit version-2 flat-course migration.
 - Project-specific done gate: all seven original MVP slices pass. The controller-first
   quality-diversity correction passes core, worker, persistence, benchmark, and browser gates;
   morphology and neural controllers remain deferred.

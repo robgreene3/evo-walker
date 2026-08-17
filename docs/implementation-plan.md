@@ -31,3 +31,11 @@ quality-diversity archive. Viability-gated scoring, gait descriptors, determinis
 resume, uninterrupted replay, archive visualization, revised benchmarks, and browser journeys
 pass. The older generational GA remains as a compatibility baseline; body topology still does not
 evolve.
+
+## Controller-first terrain generalization — complete
+
+The fixed morphology and periodic controller now run on four deterministic physical courses.
+Terrain configuration is shared by direct simulation, worker evaluation, replay rendering, and
+schema-v3 persistence. The original flat course remains unchanged; a seeded mild-course benchmark
+and three-engine save/restore journey prove useful selection signal and reproducible recovery.
+Morphology, controller representation, fitness weights, and evolutionary operators remain fixed.
