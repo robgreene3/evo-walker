@@ -36,6 +36,13 @@ evolve.
 
 The fixed morphology and periodic controller now run on four deterministic physical courses.
 Terrain configuration is shared by direct simulation, worker evaluation, replay rendering, and
-schema-v3 persistence. The original flat course remains unchanged; a seeded mild-course benchmark
+schema-v4 persistence. The original flat course remains unchanged; a seeded mild-course benchmark
 and three-engine save/restore journey prove useful selection signal and reproducible recovery.
 Morphology, controller representation, fitness weights, and evolutionary operators remain fixed.
+
+## Selectable endurance episodes — complete
+
+Six-second quick trials remain the default. A persisted thirty-second endurance option uses the
+same fixed timestep, body, controller, fitness, archive, terrain, and worker boundary. A bounded
+comparison and 120-evaluation search gate establish exact replay and a viable sustained champion;
+the longer mode costs roughly five times more computation and is labelled accordingly.

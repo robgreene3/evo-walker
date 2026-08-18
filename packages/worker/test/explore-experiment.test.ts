@@ -56,4 +56,30 @@ describe("continuous exploration worker", () => {
     expect(resumed.snapshot).toEqual(uninterrupted.snapshot);
     expect(resumed.championEpisode).toEqual(uninterrupted.championEpisode);
   });
+
+  it("uses the selected endurance duration for authoritative evaluation", async () => {
+    let cancel = false;
+    const terminal = await exploreExperiment(
+      {
+        ...REQUEST,
+        requestId: "endurance-exploration",
+        config: {
+          ...REQUEST.config,
+          initialPopulation: 24,
+          episodeDurationSeconds: 30,
+        },
+      },
+      {
+        isCancelled: () => cancel,
+        onProgress: () => {
+          cancel = true;
+        },
+        yieldControl: () => Promise.resolve(),
+      },
+    );
+
+    expect(terminal.snapshot.config.episodeDurationSeconds).toBe(30);
+    expect(terminal.championEpisode?.elapsedSeconds).toBe(30);
+    expect(terminal.championEpisode?.viable).toBe(true);
+  }, 20_000);
 });

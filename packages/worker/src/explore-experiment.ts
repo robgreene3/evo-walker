@@ -40,6 +40,7 @@ export async function exploreExperiment(
   const episodeConfig = Object.freeze({
     ...DEFAULT_EPISODE_CONFIG,
     terrain: request.config.terrain,
+    durationSeconds: request.config.episodeDurationSeconds,
   });
   const session = new QualityDiversitySession(
     request.config,

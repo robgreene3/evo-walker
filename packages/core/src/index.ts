@@ -42,6 +42,7 @@ export type {
 } from "./terrain.js";
 export {
   DEFAULT_QUALITY_DIVERSITY_CONFIG,
+  EPISODE_DURATION_OPTIONS,
   QualityDiversitySession,
   validateQualityDiversityConfig,
 } from "./quality-diversity.js";
@@ -59,6 +60,7 @@ export type {
 } from "./quality-diversity-experiment.js";
 export type {
   BehaviorDescriptor,
+  EpisodeDurationSeconds,
   QualityDiversityArchiveEntry,
   QualityDiversityConfig,
   QualityDiversityEvaluation,

@@ -240,6 +240,48 @@ test("runs and restores a seeded physical terrain course", async ({ page }) => {
   expect(runtimeErrors).toEqual([]);
 });
 
+test("runs and restores a thirty-second endurance experiment", async ({
+  page,
+}) => {
+  const runtimeErrors = recordRuntimeErrors(page);
+  await page.goto("/");
+  await configure(page, 24, 4);
+  await page
+    .getByRole("combobox", { name: "Episode", exact: true })
+    .selectOption({ label: "30 seconds · endurance" });
+  await page
+    .getByRole("button", { name: "Begin evolution", exact: true })
+    .click();
+  await expect(page.locator(".app-frame")).toHaveAttribute(
+    "data-episode-seconds",
+    "30",
+  );
+  await expect(page.locator(".archive-cell.occupied").first()).toBeVisible();
+  await stopExploration(page);
+  await expect(page.locator(".metric-cards")).toContainText("full 30s");
+  await page.getByRole("button", { name: "Save local", exact: true }).click();
+
+  await page
+    .getByRole("combobox", { name: "Episode", exact: true })
+    .selectOption({ label: "6 seconds · quick" });
+  await page.getByRole("button", { name: "Start fresh", exact: true }).click();
+  await expect(page.locator(".app-frame")).toHaveAttribute(
+    "data-episode-seconds",
+    "6",
+  );
+  await stopExploration(page);
+  await page.getByRole("button", { name: "Load local", exact: true }).click();
+  await expect(
+    page.getByRole("combobox", { name: "Episode", exact: true }),
+  ).toHaveValue("30");
+  await expect(page.locator(".app-frame")).toHaveAttribute(
+    "data-episode-seconds",
+    "30",
+  );
+  await expect(page.locator(".metric-cards")).toContainText("full 30s");
+  expect(runtimeErrors).toEqual([]);
+});
+
 test("sustains 720 evaluations with responsive checkpoint recovery", async ({
   page,
 }, testInfo) => {

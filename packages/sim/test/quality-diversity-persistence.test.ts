@@ -52,10 +52,39 @@ describe("quality-diversity experiment persistence", () => {
     );
 
     expect(restored).toEqual(document);
-    expect(restored.schemaVersion).toBe(3);
+    expect(restored.schemaVersion).toBe(4);
+    expect(restored.snapshot.config.episodeDurationSeconds).toBe(6);
     expect(restored.snapshot.config.terrain.kind).toBe("flat");
     expect(restored.championEpisode?.viable).toBe(true);
     expect(Object.isFrozen(restored.snapshot.archive)).toBe(true);
+  });
+
+  it("round-trips a thirty-second checkpoint before a champion exists", () => {
+    const session = new QualityDiversitySession(
+      {
+        seed: 42,
+        ...DEFAULT_QUALITY_DIVERSITY_CONFIG,
+        initialPopulation: 4,
+        archiveBins: 4,
+        episodeDurationSeconds: 30,
+      },
+      () => ({
+        fitness: 0,
+        behavior: { dutyFactor: 0.5, diagonalCoordination: 0.5 },
+        viable: false,
+      }),
+    );
+    const document = createQualityDiversityExperimentDocument(
+      session.snapshot(),
+      null,
+    );
+    const restored = parseQualityDiversityExperimentJson(
+      serializeQualityDiversityExperimentDocument(document),
+    );
+
+    expect(restored.physics.durationSeconds).toBe(30);
+    expect(restored.snapshot.config.episodeDurationSeconds).toBe(30);
+    expect(restored.championEpisode).toBeNull();
   });
 
   it("rejects old, inconsistent, and oversized input", () => {
@@ -68,10 +97,14 @@ describe("quality-diversity experiment persistence", () => {
       serializeQualityDiversityExperimentDocument(document),
     ) as { championEpisode: { terrain: { obstaclesCleared: number } } };
     inconsistentTerrain.championEpisode.terrain.obstaclesCleared = 1;
+    const inconsistentDuration = JSON.parse(
+      serializeQualityDiversityExperimentDocument(document),
+    ) as { snapshot: { config: { episodeDurationSeconds: number } } };
+    inconsistentDuration.snapshot.config.episodeDurationSeconds = 30;
 
     expect(() =>
       parseQualityDiversityExperimentJson('{"schemaVersion":1}'),
-    ).toThrow(/requires version 3/u);
+    ).toThrow(/requires version 4/u);
     expect(() =>
       parseQualityDiversityExperimentJson('{"schemaVersion":2}'),
     ).toThrow(/migration validation failed/u);
@@ -82,37 +115,55 @@ describe("quality-diversity experiment persistence", () => {
       parseQualityDiversityExperimentJson(JSON.stringify(inconsistentTerrain)),
     ).toThrow(/terrain outcome does not match/iu);
     expect(() =>
+      parseQualityDiversityExperimentJson(JSON.stringify(inconsistentDuration)),
+    ).toThrow(/episode duration does not match/iu);
+    expect(() =>
       parseQualityDiversityExperimentJson(
         " ".repeat(MAX_QUALITY_DIVERSITY_EXPERIMENT_BYTES + 1),
       ),
     ).toThrow(/byte limit/u);
   });
 
-  it("migrates a valid schema-v2 flat experiment without inference", () => {
+  it("migrates valid schema-v2 and schema-v3 experiments without inference", () => {
     const current = benchmarkDocument();
-    const legacy = structuredClone(current) as unknown as {
+    const legacyV2 = structuredClone(current) as unknown as {
       schemaVersion: number;
       physics: { terrain?: unknown };
-      snapshot: { config: { terrain?: unknown } };
+      snapshot: {
+        config: { terrain?: unknown; episodeDurationSeconds?: unknown };
+      };
       championEpisode: null | {
         provenance: { terrain?: unknown };
         terrain?: unknown;
       };
     };
-    legacy.schemaVersion = 2;
-    delete legacy.physics.terrain;
-    delete legacy.snapshot.config.terrain;
-    if (legacy.championEpisode !== null) {
-      delete legacy.championEpisode.provenance.terrain;
-      delete legacy.championEpisode.terrain;
+    legacyV2.schemaVersion = 2;
+    delete legacyV2.physics.terrain;
+    delete legacyV2.snapshot.config.terrain;
+    delete legacyV2.snapshot.config.episodeDurationSeconds;
+    if (legacyV2.championEpisode !== null) {
+      delete legacyV2.championEpisode.provenance.terrain;
+      delete legacyV2.championEpisode.terrain;
     }
 
-    const migrated = parseQualityDiversityExperimentJson(
-      JSON.stringify(legacy),
+    const migratedV2 = parseQualityDiversityExperimentJson(
+      JSON.stringify(legacyV2),
+    );
+    const legacyV3 = structuredClone(current) as unknown as {
+      schemaVersion: number;
+      snapshot: { config: { episodeDurationSeconds?: unknown } };
+    };
+    legacyV3.schemaVersion = 3;
+    delete legacyV3.snapshot.config.episodeDurationSeconds;
+    const migratedV3 = parseQualityDiversityExperimentJson(
+      JSON.stringify(legacyV3),
     );
 
-    expect(migrated.schemaVersion).toBe(3);
-    expect(migrated.snapshot.config.terrain.kind).toBe("flat");
-    expect(migrated.championEpisode?.terrain.obstaclesTotal).toBe(0);
+    expect(migratedV2.schemaVersion).toBe(4);
+    expect(migratedV2.snapshot.config.terrain.kind).toBe("flat");
+    expect(migratedV2.snapshot.config.episodeDurationSeconds).toBe(6);
+    expect(migratedV2.championEpisode?.terrain.obstaclesTotal).toBe(0);
+    expect(migratedV3.schemaVersion).toBe(4);
+    expect(migratedV3.snapshot.config.episodeDurationSeconds).toBe(6);
   });
 });

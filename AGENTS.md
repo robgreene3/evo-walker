@@ -304,9 +304,10 @@ Populate this section after inspecting or creating the repository. Keep only sta
 - Supported browsers/platforms: macOS 26.5.2 arm64 with Node 24.14.0 and Playwright Chromium,
   Firefox, and WebKit; current source tests, production build, desktop/mobile critical journey,
   720-evaluation sustained run, and live browser pass.
-- Current experiment: fixed eight-joint quadruped; six-second episode; continuous deterministic
-  MAP-Elites-style controller archive; deterministic terrain generator v1; schema-v3 resumable
-  checkpoints with explicit version-2 flat-course migration.
+- Current experiment: fixed eight-joint quadruped; selectable 6-second quick or 30-second
+  endurance episode; continuous deterministic MAP-Elites-style controller archive; deterministic
+  terrain generator v1; schema-v4 resumable checkpoints with explicit version-2/version-3
+  migration to 6-second trials.
 - Project-specific done gate: all seven original MVP slices pass. The controller-first
   quality-diversity correction passes core, worker, persistence, benchmark, and browser gates;
   morphology and neural controllers remain deferred.

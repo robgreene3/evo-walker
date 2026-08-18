@@ -14,7 +14,7 @@ import {
 } from "./terrain.js";
 import type { QualityDiversitySnapshot } from "./quality-diversity.js";
 
-export const QUALITY_DIVERSITY_EXPERIMENT_SCHEMA_VERSION = 3 as const;
+export const QUALITY_DIVERSITY_EXPERIMENT_SCHEMA_VERSION = 4 as const;
 export const MAX_QUALITY_DIVERSITY_EXPERIMENT_BYTES = 8_000_000;
 
 const finite = z.number();
@@ -49,7 +49,8 @@ const terrainSchema = z.strictObject({
   seed: safeInteger,
   generatorVersion: z.literal(TERRAIN_GENERATOR_VERSION),
 });
-const legacyConfigSchema = z.strictObject({
+const episodeDurationSchema = z.union([z.literal(6), z.literal(30)]);
+const legacyV2ConfigSchema = z.strictObject({
   seed: safeInteger,
   initialPopulation: z.number().int().min(4).max(256),
   archiveBins: z.number().int().min(4).max(32),
@@ -58,7 +59,12 @@ const legacyConfigSchema = z.strictObject({
   mutationScale: finite.min(0).max(10),
   randomInjectionRate: finite.min(0).max(1),
 });
-const configSchema = legacyConfigSchema.extend({ terrain: terrainSchema });
+const legacyV3ConfigSchema = legacyV2ConfigSchema.extend({
+  terrain: terrainSchema,
+});
+const configSchema = legacyV3ConfigSchema.extend({
+  episodeDurationSeconds: episodeDurationSchema,
+});
 const archiveEntrySchema = z.strictObject({
   cellIndex: z.number().int().min(0).max(1_023),
   xIndex: z.number().int().min(0).max(31),
@@ -95,8 +101,11 @@ const snapshotSchema = z.strictObject({
   history: z.array(historySchema).min(1).max(512),
   prng: prngSchema,
 });
-const legacySnapshotSchema = snapshotSchema.extend({
-  config: legacyConfigSchema,
+const legacyV2SnapshotSchema = snapshotSchema.extend({
+  config: legacyV2ConfigSchema,
+});
+const legacyV3SnapshotSchema = snapshotSchema.extend({
+  config: legacyV3ConfigSchema,
 });
 const fitnessComponentsSchema = z.strictObject({
   forwardProgress: finite,
@@ -175,12 +184,31 @@ const legacyV2DocumentSchema = z.strictObject({
     rapierEngineVersion: z.string().min(1).max(64),
     timestepSeconds: finite.positive(),
     substeps: z.literal(1),
-    durationSeconds: finite.positive(),
+    durationSeconds: z.literal(6),
     settlingSeconds: finite.nonnegative(),
     snapshotEverySteps: z.number().int().positive().max(100_000),
   }),
-  snapshot: legacySnapshotSchema,
+  snapshot: legacyV2SnapshotSchema,
   championEpisode: legacyEpisodeSchema.nullable(),
+});
+
+const legacyV3DocumentSchema = z.strictObject({
+  schemaVersion: z.literal(3),
+  buildVersion: z.literal(EXPERIMENT_BUILD_VERSION),
+  mode: z.literal("continuous-quality-diversity"),
+  prng: z.strictObject({ algorithm: z.literal(PRNG_IDENTITY) }),
+  physics: z.strictObject({
+    rapierBindingVersion: z.literal("0.19.3"),
+    rapierEngineVersion: z.string().min(1).max(64),
+    timestepSeconds: finite.positive(),
+    substeps: z.literal(1),
+    durationSeconds: z.literal(6),
+    settlingSeconds: finite.nonnegative(),
+    snapshotEverySteps: z.number().int().positive().max(100_000),
+    terrain: terrainSchema,
+  }),
+  snapshot: legacyV3SnapshotSchema,
+  championEpisode: episodeSchema.nullable(),
 });
 
 export const qualityDiversityExperimentDocumentSchema = z
@@ -194,7 +222,7 @@ export const qualityDiversityExperimentDocumentSchema = z
       rapierEngineVersion: z.string().min(1).max(64),
       timestepSeconds: finite.positive(),
       substeps: z.literal(1),
-      durationSeconds: finite.positive(),
+      durationSeconds: episodeDurationSchema,
       settlingSeconds: finite.nonnegative(),
       snapshotEverySteps: z.number().int().positive().max(100_000),
       terrain: terrainSchema,
@@ -286,6 +314,13 @@ export const qualityDiversityExperimentDocumentSchema = z
     ) {
       issue("Terrain metadata does not match the saved experiment.");
     }
+    if (
+      physics.durationSeconds !== snapshot.config.episodeDurationSeconds ||
+      (championEpisode !== null &&
+        championEpisode.elapsedSeconds !== physics.durationSeconds)
+    ) {
+      issue("Episode duration does not match the saved experiment.");
+    }
     if (championEpisode !== null) {
       const course = createTerrainCourse(physics.terrain);
       if (
@@ -347,7 +382,7 @@ export function createQualityDiversityExperimentDocument(
         parsedEpisode?.provenance.rapierEngineVersion ?? "unknown",
       timestepSeconds: parsedEpisode?.provenance.timestepSeconds ?? 1 / 120,
       substeps: 1,
-      durationSeconds: 6,
+      durationSeconds: snapshot.config.episodeDurationSeconds,
       settlingSeconds: 0.75,
       snapshotEverySteps: 12,
       terrain: snapshot.config.terrain,
@@ -400,13 +435,18 @@ export function parseQualityDiversityExperimentJson(
     }
     const legacy = legacyResult.data;
     const terrain = DEFAULT_TERRAIN_CONFIG;
+    const episodeDurationSeconds = 6;
     return validateDocument({
       ...legacy,
       schemaVersion: QUALITY_DIVERSITY_EXPERIMENT_SCHEMA_VERSION,
       physics: { ...legacy.physics, terrain },
       snapshot: {
         ...legacy.snapshot,
-        config: { ...legacy.snapshot.config, terrain },
+        config: {
+          ...legacy.snapshot.config,
+          terrain,
+          episodeDurationSeconds,
+        },
       },
       championEpisode:
         legacy.championEpisode === null
@@ -429,10 +469,38 @@ export function parseQualityDiversityExperimentJson(
     value !== null &&
     typeof value === "object" &&
     "schemaVersion" in value &&
+    value.schemaVersion === 3
+  ) {
+    const legacyResult = legacyV3DocumentSchema.safeParse(value);
+    if (!legacyResult.success) {
+      const first = legacyResult.error.issues[0];
+      throw new ExperimentImportError(
+        first === undefined
+          ? "Schema-v3 experiment migration validation failed."
+          : `Schema-v3 experiment migration validation failed: ${first.message}`,
+      );
+    }
+    const legacy = legacyResult.data;
+    return validateDocument({
+      ...legacy,
+      schemaVersion: QUALITY_DIVERSITY_EXPERIMENT_SCHEMA_VERSION,
+      snapshot: {
+        ...legacy.snapshot,
+        config: {
+          ...legacy.snapshot.config,
+          episodeDurationSeconds: 6,
+        },
+      },
+    });
+  }
+  if (
+    value !== null &&
+    typeof value === "object" &&
+    "schemaVersion" in value &&
     value.schemaVersion !== QUALITY_DIVERSITY_EXPERIMENT_SCHEMA_VERSION
   ) {
     throw new ExperimentImportError(
-      `Unsupported experiment schema version: ${String(value.schemaVersion)}. EvoWalker archive mode requires version 3.`,
+      `Unsupported experiment schema version: ${String(value.schemaVersion)}. EvoWalker archive mode requires version 4.`,
     );
   }
   return validateDocument(value);

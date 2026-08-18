@@ -8,7 +8,7 @@
   claimed
 - `@dimforge/rapier3d-deterministic-compat` 0.19.3
 - fixed timestep 1/120 second; one substep
-- 0.75-second unscored settling interval; 5.25-second scored interval; 6-second total
+- 0.75-second unscored settling interval; supported 6-second quick and 30-second endurance trials
 - fixed one-torso/four-two-segment-leg morphology; eight periodic joint controllers
 - deterministic terrain generator v1: flat, gentle rise, curb trail, and uneven trail
 
@@ -26,8 +26,8 @@ behavior coordinates are contact duty factor and diagonal coordination, each in 
 
 Checkpoint tests compare an uninterrupted 40-step quality-diversity session to one restored after
 17 steps and require exact snapshot equality. Worker tests make the same comparison through the
-simulation boundary. Schema v3 stores the selected terrain and its generator version in addition
-to enough state to continue exactly in the supported build.
+simulation boundary. Schema v4 stores the selected duration, terrain, and terrain-generator
+version in addition to enough state to continue exactly in the supported build.
 
 The canonical improvement benchmark uses seeds 7, 42, and 99, 24 founders, an 8×8 archive, and
 128 offspring trials. It requires non-regression for every seed, at least two seeds improving by
@@ -39,6 +39,12 @@ fitness weights, 24 founders, and 96 subsequent trials constant. For each non-fl
 requires a viable champion with at least `0.25` metres progress, one crossed terrain feature,
 three occupied gait niches, and an exactly repeating episode. This establishes a learnable
 controller-first challenge, not robust generalization to unseen courses.
+
+The endurance gate compares canonical controllers at 6 and 30 seconds, requires exact 30-second
+replay, and then evolves seed 42 for 24 founders plus 96 advances. It requires a complete viable
+30-second champion with at least `0.25` metres progress. The accepted run reached `0.502754 m`,
+six occupied niches, and checksum `ab7190ce` after 120 evaluations in 52.05 seconds. This is
+same-runtime evidence for sustained simulation, not proof of fast or transferable locomotion.
 
 ## Fitness and viability
 

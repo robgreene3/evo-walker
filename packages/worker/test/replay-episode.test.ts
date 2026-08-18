@@ -22,6 +22,7 @@ describe("episode replay protocol", () => {
       requestId: "replay-test",
       genome,
       terrain: DEFAULT_TERRAIN_CONFIG,
+      episodeDurationSeconds: 30,
     };
 
     expect(replayEpisode(request)).toEqual({
@@ -31,6 +32,7 @@ describe("episode replay protocol", () => {
       episode: runDeterministicEpisode(genome, {
         ...DEFAULT_EPISODE_CONFIG,
         terrain: DEFAULT_TERRAIN_CONFIG,
+        durationSeconds: 30,
       }),
     });
   });
@@ -43,6 +45,7 @@ describe("episode replay protocol", () => {
         requestId: "future-replay",
         genome: createSeededController(9),
         terrain: DEFAULT_TERRAIN_CONFIG,
+        episodeDurationSeconds: 6,
       }),
     ).toThrow("Unsupported worker protocol version.");
   });

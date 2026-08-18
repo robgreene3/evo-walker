@@ -1,9 +1,10 @@
 # EvoWalker
 
 EvoWalker is a local-first browser laboratory for reproducible evolutionary locomotion. A
-fixed articulated quadruped runs six-second deterministic physics trials while a continuous
-quality-diversity search evolves only its eight-joint periodic controller. Viable gaits occupy
-an inspectable archive; fallen or invalid candidates never become champions.
+fixed articulated quadruped runs deterministic physics trials while a continuous quality-diversity
+search evolves only its eight-joint periodic controller. Choose six simulated seconds for rapid
+search or thirty seconds to select for sustained endurance. Viable gaits occupy an inspectable
+archive; fallen or invalid candidates never become champions.
 
 Four deterministic proving grounds are available: the verified flat baseline, a gentle seeded
 rise, two low curbs, and a shallow uneven trail. Terrain changes the physical selection pressure
@@ -39,7 +40,8 @@ pnpm dev
 ```
 
 Open the local URL printed by Vite. The verified default uses seed 42, 24 founders, and an 8×8
-archive. Evolution continues until Pause or Stop.
+archive and six-second quick trials. Select “30 seconds · endurance” before starting to test
+sustained locomotion; evaluations take roughly five times more computation.
 
 ## Verify
 
@@ -81,9 +83,10 @@ and never mutates experiment state.
 - Fitness is progress plus upright bonus minus fall, actuation, lateral, and invalid penalties.
 - Archive admission additionally requires a complete viable trial; a fallen sprinter cannot win.
 - Gait niches use ground-contact duty factor and diagonal coordination, both clamped to `[0,1]`.
-- Schema-v3 JSON is size-bounded and validated before state replacement. It stores the archive,
-  terrain kind/seed/generator version, bounded lineage/history, configuration, and exact PRNG
-  state needed to continue. Valid schema-v2 flat experiments migrate explicitly to version 3.
+- Schema-v4 JSON is size-bounded and validated before state replacement. It stores the archive,
+  episode duration, terrain kind/seed/generator version, bounded lineage/history, configuration,
+  and exact PRNG state needed to continue. Valid schema-v2 and schema-v3 experiments migrate
+  explicitly to six-second trials.
 - Same-runtime checkpoint continuation is tested exactly. Cross-platform bitwise equality is not
   claimed.
 

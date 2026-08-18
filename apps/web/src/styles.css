@@ -197,7 +197,7 @@ h2 {
 }
 .experiment-controls {
   display: grid;
-  grid-template-columns: repeat(5, 108px);
+  grid-template-columns: repeat(6, minmax(108px, auto));
   gap: 0.65rem;
 }
 label {

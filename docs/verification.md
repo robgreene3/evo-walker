@@ -684,3 +684,46 @@ adding more rendering or simulation dependencies.
 - Decision: **KEEP**. The result adds visible environmental pressure and a longer experimental
   path while retaining controller-first causal clarity. The next bounded improvement should test
   cross-course transfer or curricula before morphology genes.
+
+## Cycle 12: selectable thirty-second endurance episodes
+
+- User-visible slice: let users select a thirty-second simulated endurance trial before starting
+  evolution, replay the complete longer champion, and recover the same duration after save/load.
+- Baseline: every authoritative evaluation and replay lasted six seconds. That supports rapid
+  search but does not distinguish a gait that remains useful over a longer horizon.
+- Testable hypothesis: an unchanged controller-first search can produce exactly reproducible,
+  fully viable thirty-second locomotion within the established 120-evaluation interactive budget.
+- Predicted result: exact 30-second replay, no invalid state, a viable champion moving at least
+  `0.25 m`, multiple occupied gait niches, and worker cost near the expected fivefold duration
+  increase without moving simulation onto the UI thread.
+- Guardrails: six seconds remains the default; unchanged fixed morphology, periodic genes,
+  fitness equation and weights, terrain, timestep, settling interval, search operators, and no
+  backend or telemetry. Duration must be persisted and validated rather than treated as a visual
+  replay preference.
+- Falsifier: non-deterministic replay, NaN/Infinity, no viable `0.25 m` champion at 120 evaluations,
+  unsupported duration accepted, checkpoint disagreement, or unusable worker/browser response.
+- Baseline comparison: five canonical controllers reproduced exactly at 30 seconds. Individual
+  evaluation wall time increased from roughly 87–139 ms at six seconds to 394–456 ms at thirty
+  seconds. Four controllers already non-viable at six seconds made almost no later progress,
+  demonstrating that merely stretching the old replay would not create endurance behavior.
+- Failed first intervention: a seed-42 search with 24 founders plus 40 advances found a viable
+  thirty-second controller but only `0.194837 m` progress. This failed the predeclared `0.25 m`
+  gate; the success measure was not reduced.
+- Bounded revision: reuse the terrain cycle's established 24-founder plus 96-advance budget. At
+  120 evaluations the champion completed 30 seconds, moved `0.502754 m`, occupied one of six gait
+  niches, reproduced exactly with checksum `ab7190ce`, and completed the search gate in 52.05
+  seconds.
+- Implementation: worker protocol v4 propagates the selected duration through evolution and
+  archive inspection. Schema v4 requires duration agreement across search configuration, physics
+  metadata, and champion elapsed time. Valid v2/v3 archives migrate explicitly to six seconds;
+  unsupported or inconsistent data fails before state replacement.
+- Consolidated local observation: Node 24.14.0 passed Prettier, ESLint, strict TypeScript, all 11
+  source-test files with 34 tests, all 6 benchmark files with 7 tests in 59.22 seconds, and the
+  Vite production build. The worker suite directly returned a viable 30-second champion, and
+  schema-v4 round-tripped a 30-second checkpoint with no champion yet. Protected brief hashes
+  match Cycle 1, `git diff --check` passes, and application source contains no `Math.random()`.
+  The existing Vite large-chunk and Rapier initializer advisories remain non-fatal.
+- Browser gate authored: the production journey selects endurance mode, observes a viable archive,
+  stops and saves, starts a six-second experiment, then restores the thirty-second checkpoint and
+  its full-trial label. Automated execution remains pending because the in-app browser URL policy
+  blocked re-entry to the restarted local preview; no alternate browser surface was used.

@@ -1,13 +1,15 @@
 # Experiment format
 
-## Current format: version 3
+## Current format: version 4
 
 EvoWalker exports strict UTF-8 JSON up to 8,000,000 bytes. The root contains:
 
-- `schemaVersion: 3`, `buildVersion`, and mode `continuous-quality-diversity`;
+- `schemaVersion: 4`, `buildVersion`, and mode `continuous-quality-diversity`;
 - PRNG identity plus the checkpointed `mulberry32-v1` uint32 state;
 - Rapier binding/engine version, fixed timestep, substeps, duration, settling interval, and
   replay snapshot cadence;
+- the supported six- or thirty-second episode duration in both search configuration and physics
+  metadata;
 - terrain kind, course seed, and generator version in physics, search configuration, and episode
   provenance, plus the displayed terrain label and crossed/total feature counts;
 - quality-diversity configuration, evaluation count, occupied archive cells, current champion,
@@ -33,15 +35,17 @@ the current archive and evolution state remain complete.
 ## Compatibility
 
 Version 1 represented the earlier finite generational GA and did not contain a resumable
-population/PRNG state. Version 3 rejects it with recovery guidance. A valid version-2 archive is
-explicitly migrated to the version-3 flat proving ground because flat terrain was the only
-possible version-2 environment; malformed version-2 input is rejected before state replacement.
-Keep the original export, or use the tagged `controller-first-mvp` build to inspect a v1 file.
-EvoWalker never guesses at incompatible experiment meaning.
+population/PRNG state. Version 4 rejects it with recovery guidance. A valid version-2 archive is
+explicitly migrated to flat terrain and a six-second episode because those were its only possible
+environment and duration. A valid version-3 archive retains its terrain and migrates explicitly
+to six seconds. Malformed legacy input is rejected before state replacement. Keep the original
+export, or use the tagged `controller-first-mvp` build to inspect a v1 file. EvoWalker never
+guesses at incompatible experiment meaning.
 
 ## Storage
 
-“Save local” uses `evowalker:experiment:v3`; “Export JSON” downloads the same validated document.
-On first access, the app may read a legacy `evowalker:experiment:v2` entry and migrate it without
-deleting that fallback. Load/import validates the entire input before replacing state. Clearing
-site data removes local saves but cannot remove an exported file.
+“Save local” uses `evowalker:experiment:v4`; “Export JSON” downloads the same validated document.
+On first access, the app may read a legacy `evowalker:experiment:v3` or
+`evowalker:experiment:v2` entry and migrate it without deleting that fallback. Load/import
+validates the entire input before replacing state. Clearing site data removes local saves but
+cannot remove an exported file.

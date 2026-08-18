@@ -27,9 +27,13 @@ export type QualityDiversityEvaluator = (
   genome: PeriodicControllerGenome,
 ) => QualityDiversityEvaluation;
 
+export const EPISODE_DURATION_OPTIONS = [6, 30] as const;
+export type EpisodeDurationSeconds = (typeof EPISODE_DURATION_OPTIONS)[number];
+
 export interface QualityDiversityConfig {
   readonly seed: number;
   readonly terrain: TerrainConfig;
+  readonly episodeDurationSeconds: EpisodeDurationSeconds;
   readonly initialPopulation: number;
   readonly archiveBins: number;
   readonly crossoverRate: number;
@@ -85,6 +89,7 @@ export interface QualityDiversityStep {
 
 export const DEFAULT_QUALITY_DIVERSITY_CONFIG = Object.freeze({
   terrain: DEFAULT_TERRAIN_CONFIG,
+  episodeDurationSeconds: 6 as const,
   initialPopulation: 24,
   archiveBins: 8,
   crossoverRate: 0.75,
@@ -128,6 +133,9 @@ export function validateQualityDiversityConfig(
     throw new TypeError("Quality-diversity seed must be a safe integer.");
   }
   validateTerrainConfig(config.terrain);
+  if (!EPISODE_DURATION_OPTIONS.includes(config.episodeDurationSeconds)) {
+    throw new RangeError("Episode duration must be 6 or 30 seconds.");
+  }
   if (
     !Number.isInteger(config.initialPopulation) ||
     config.initialPopulation < 4 ||

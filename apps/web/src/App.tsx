@@ -1,5 +1,6 @@
 import {
   DEFAULT_QUALITY_DIVERSITY_CONFIG,
+  EPISODE_DURATION_OPTIONS,
   TERRAIN_GENERATOR_VERSION,
   TERRAIN_KINDS,
   MAX_QUALITY_DIVERSITY_EXPERIMENT_BYTES,
@@ -10,6 +11,7 @@ import {
   type QualityDiversityArchiveEntry,
   type QualityDiversityLineageRecord,
   type QualityDiversitySnapshot,
+  type EpisodeDurationSeconds,
   type TerrainConfig,
   type TerrainKind,
 } from "@evowalker/core";
@@ -42,6 +44,7 @@ interface EditableConfig {
   readonly seed: number;
   readonly initialPopulation: number;
   readonly archiveBins: number;
+  readonly episodeDurationSeconds: EpisodeDurationSeconds;
   readonly terrainKind: TerrainKind;
   readonly terrainSeed: number;
 }
@@ -50,11 +53,16 @@ const INITIAL_CONFIG: EditableConfig = {
   seed: 42,
   initialPopulation: DEFAULT_QUALITY_DIVERSITY_CONFIG.initialPopulation,
   archiveBins: DEFAULT_QUALITY_DIVERSITY_CONFIG.archiveBins,
+  episodeDurationSeconds:
+    DEFAULT_QUALITY_DIVERSITY_CONFIG.episodeDurationSeconds,
   terrainKind: "flat",
   terrainSeed: 42,
 };
-const LOCAL_STORAGE_KEY = "evowalker:experiment:v3";
-const LEGACY_LOCAL_STORAGE_KEY = "evowalker:experiment:v2";
+const LOCAL_STORAGE_KEY = "evowalker:experiment:v4";
+const LEGACY_LOCAL_STORAGE_KEYS = [
+  "evowalker:experiment:v3",
+  "evowalker:experiment:v2",
+] as const;
 
 const STATUS_TEXT: Readonly<Record<ExperimentStatus, string>> = {
   initial: "Ready to cultivate a deterministic gait archive.",
@@ -85,7 +93,9 @@ function localSaveExists(): boolean {
   try {
     return (
       localStorage.getItem(LOCAL_STORAGE_KEY) !== null ||
-      localStorage.getItem(LEGACY_LOCAL_STORAGE_KEY) !== null
+      LEGACY_LOCAL_STORAGE_KEYS.some(
+        (key) => localStorage.getItem(key) !== null,
+      )
     );
   } catch {
     return false;
@@ -184,6 +194,8 @@ export function App() {
     generatorVersion: TERRAIN_GENERATOR_VERSION,
   };
   const experimentTerrain = snapshot?.config.terrain ?? editableTerrain;
+  const experimentDurationSeconds =
+    snapshot?.config.episodeDurationSeconds ?? config.episodeDurationSeconds;
 
   const transition = useCallback((next: ExperimentStatus) => {
     statusRef.current = next;
@@ -265,10 +277,11 @@ export function App() {
         requestId,
         genome: entry.genome,
         terrain: experimentTerrain,
+        episodeDurationSeconds: experimentDurationSeconds,
       };
       worker.postMessage(request);
     },
-    [experimentTerrain],
+    [experimentDurationSeconds, experimentTerrain],
   );
 
   const receive = useCallback(
@@ -386,6 +399,7 @@ export function App() {
         initialPopulation: config.initialPopulation,
         archiveBins: config.archiveBins,
         terrain: editableTerrain,
+        episodeDurationSeconds: config.episodeDurationSeconds,
       },
     };
     const request: StartExplorationRequest =
@@ -413,6 +427,7 @@ export function App() {
       seed: document.snapshot.config.seed,
       initialPopulation: document.snapshot.config.initialPopulation,
       archiveBins: document.snapshot.config.archiveBins,
+      episodeDurationSeconds: document.snapshot.config.episodeDurationSeconds,
       terrainKind: document.snapshot.config.terrain.kind,
       terrainSeed: document.snapshot.config.terrain.seed,
     });
@@ -453,7 +468,10 @@ export function App() {
     try {
       const serialized =
         localStorage.getItem(LOCAL_STORAGE_KEY) ??
-        localStorage.getItem(LEGACY_LOCAL_STORAGE_KEY);
+        LEGACY_LOCAL_STORAGE_KEYS.map((key) => localStorage.getItem(key)).find(
+          (value) => value !== null,
+        ) ??
+        null;
       if (serialized === null)
         throw new Error("No EvoWalker checkpoint was found.");
       restoreDocument(parseQualityDiversityExperimentJson(serialized));
@@ -479,7 +497,7 @@ export function App() {
       link.download = `evowalker-seed-${String(config.seed)}-evaluation-${String(snapshot?.evaluations ?? 0)}.json`;
       link.click();
       URL.revokeObjectURL(url);
-      setPersistenceMessage("Exported a validated version-3 checkpoint.");
+      setPersistenceMessage("Exported a validated version-4 checkpoint.");
     } catch (error) {
       setPersistenceMessage(
         error instanceof Error ? error.message : "The JSON export failed.",
@@ -501,7 +519,7 @@ export function App() {
         error instanceof Error ? error.message : "The JSON import failed.",
       );
       setPersistenceMessage(
-        "The current experiment was kept. Choose a valid EvoWalker schema-v2 or schema-v3 JSON file.",
+        "The current experiment was kept. Choose a valid EvoWalker schema-v2, schema-v3, or schema-v4 JSON file.",
       );
       transition("error");
     }
@@ -536,6 +554,7 @@ export function App() {
       className="app-frame"
       data-status={status}
       data-terrain={experimentTerrain.kind}
+      data-episode-seconds={experimentDurationSeconds}
     >
       <header className="masthead">
         <a className="brand" href="#main-content" aria-label="EvoWalker home">
@@ -614,6 +633,29 @@ export function App() {
                   });
                 }}
               />
+            </label>
+            <label>
+              Episode
+              <select
+                value={config.episodeDurationSeconds}
+                disabled={activeWorker}
+                onChange={(event) => {
+                  setConfig({
+                    ...config,
+                    episodeDurationSeconds: Number(
+                      event.currentTarget.value,
+                    ) as EpisodeDurationSeconds,
+                  });
+                }}
+              >
+                {EPISODE_DURATION_OPTIONS.map((duration) => (
+                  <option key={duration} value={duration}>
+                    {duration === 6
+                      ? "6 seconds · quick"
+                      : "30 seconds · endurance"}
+                  </option>
+                ))}
+              </select>
             </label>
             <label>
               Terrain
@@ -744,7 +786,7 @@ export function App() {
             <strong>Deterministic checkpoint</strong>
             <small role="status" aria-live="polite">
               {persistenceMessage ??
-                "Schema v3 · terrain, archive, and PRNG state · validated before replacement"}
+                "Schema v4 · duration, terrain, archive, and PRNG state · validated before replacement"}
             </small>
           </div>
           <div className="persistence-controls">
@@ -900,7 +942,9 @@ export function App() {
               <div>
                 <span>Stability</span>
                 <strong>
-                  {displayEpisode?.viable === true ? "full trial" : "—"}
+                  {displayEpisode?.viable === true
+                    ? `full ${String(experimentDurationSeconds)}s`
+                    : "—"}
                 </strong>
               </div>
               <div>
