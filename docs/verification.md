@@ -781,6 +781,20 @@ adding more rendering or simulation dependencies.
   and reduced-motion mobile journey without console/page errors. Chromium alone passed the
   calibrated 720-evaluation soak. The existing Rapier initializer and large-chunk advisories
   remain non-fatal and unchanged.
+- Hosted-run observation: pull-request run `32905004615` passed formatting, lint, strict types,
+  all 36 source tests, all 7 benchmarks, and the production build, then exposed two runner-specific
+  defects. Chromium reached 518/720 evaluations before the locally calibrated 80-second cutoff.
+  Continuing every engine inside that long Playwright process then left Firefox unable to load
+  the initial app while WebKit subsequently passed. This is hosted verification failure evidence;
+  the pull request was not merged.
+- Hosted-run revision: local runs retain the measured 80-second Chromium throughput gate. CI must
+  still reach all 720 evaluations but receives 180 seconds on shared hardware. GitHub now runs
+  Chromium, Firefox, and WebKit in separate Playwright processes after one shared source/benchmark
+  build step, preventing cross-engine browser/WASM memory carryover. The job timeout increases to
+  30 minutes to contain the unchanged coverage. No product behavior, viability threshold, browser
+  engine, source test, benchmark, or soak evaluation count changed. A local CI-mode reproduction
+  then passed the three fresh processes sequentially: Chromium 7/7 in 3.0 minutes, Firefox 6/6 in
+  3.7 minutes, and WebKit 6/6 in 41.9 seconds, with only the two intended non-Chromium soak skips.
 - Decision: **KEEP**. Cross-course transfer is now visible without changing selection pressure.
   A curriculum or generalist objective remains deferred until repeated diagnostic evidence can
   justify a predeclared rule and its fourfold evaluation cost.

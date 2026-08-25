@@ -28,6 +28,8 @@ function evaluationsFrom(text: string): number {
   return value;
 }
 
+const sustainedRunTimeoutMs = process.env["CI"] === "true" ? 180_000 : 80_000;
+
 async function stopExploration(page: Page): Promise<void> {
   await page.getByRole("button", { name: "Stop", exact: true }).click();
   await expect(page.locator(".app-frame")).toHaveAttribute(
@@ -301,6 +303,7 @@ test("sustains 720 evaluations with responsive checkpoint recovery", async ({
     testInfo.project.name !== "chromium",
     "The sustained-run performance gate is calibrated for Chromium.",
   );
+  test.setTimeout(sustainedRunTimeoutMs + 30_000);
   const runtimeErrors = recordRuntimeErrors(page);
   await page.goto("/");
   await page
@@ -314,7 +317,7 @@ test("sustains 720 evaluations with responsive checkpoint recovery", async ({
   const heading = page.getByRole("heading", { name: /evaluations$/u });
   await expect
     .poll(async () => evaluationsFrom(await heading.innerText()), {
-      timeout: 80_000,
+      timeout: sustainedRunTimeoutMs,
       intervals: [500, 1_000, 2_000],
     })
     .toBeGreaterThanOrEqual(720);
