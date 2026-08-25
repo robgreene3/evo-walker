@@ -1,59 +1,80 @@
-import { DEFAULT_GA_CONFIG, evolveControllerPopulation } from "@evowalker/core";
+import {
+  DEFAULT_QUALITY_DIVERSITY_CONFIG,
+  QualityDiversitySession,
+} from "@evowalker/core";
 import { describe, expect, it } from "vitest";
 
 import { runDeterministicEpisode } from "../src/index.js";
 
 const EVOLUTION_SEEDS = [7, 42, 99] as const;
+const OFFSPRING_EVALUATIONS = 128;
 
-function evolve(seed: number) {
-  return evolveControllerPopulation(
-    { seed, ...DEFAULT_GA_CONFIG },
-    (genome) => runDeterministicEpisode(genome).aggregateFitness,
-  );
-}
-
-describe("30-generation controller evolution gate", () => {
-  it("improves across canonical seeds without a fall or standing-still exploit", () => {
+describe("continuous controller quality-diversity gate", () => {
+  it("expands the viable gait archive and improves the canonical seed set", () => {
     const startedAt = performance.now();
     const runs = EVOLUTION_SEEDS.map((seed) => {
-      const evolution = evolve(seed);
-      const initial = evolution.history[0];
-      if (initial === undefined) {
-        throw new Error("Evolution did not record its initial generation.");
+      const session = new QualityDiversitySession(
+        {
+          seed,
+          ...DEFAULT_QUALITY_DIVERSITY_CONFIG,
+          initialPopulation: 24,
+          archiveBins: 8,
+        },
+        (genome) => {
+          const episode = runDeterministicEpisode(genome);
+          return {
+            fitness: episode.aggregateFitness,
+            behavior: episode.gait,
+            viable: episode.viable,
+          };
+        },
+      );
+      const initial = session.snapshot();
+      for (let index = 0; index < OFFSPRING_EVALUATIONS; index += 1) {
+        session.advance();
       }
-      const episode = runDeterministicEpisode(evolution.champion.genome);
-      const improvement = evolution.champion.fitness - initial.bestFitness;
+      const final = session.snapshot();
+      if (initial.champion === null || final.champion === null) {
+        throw new Error(
+          "Canonical exploration did not produce a viable champion.",
+        );
+      }
+      const episode = runDeterministicEpisode(final.champion.genome);
+      const improvement = final.champion.fitness - initial.champion.fitness;
 
-      expect(evolution.history).toHaveLength(DEFAULT_GA_CONFIG.generations + 1);
-      expect(improvement).toBeGreaterThanOrEqual(0.02);
-      expect(episode.components.forwardProgress).toBeGreaterThanOrEqual(0.02);
+      expect(final.evaluations).toBe(24 + OFFSPRING_EVALUATIONS);
+      expect(
+        final.archive.length - initial.archive.length,
+      ).toBeGreaterThanOrEqual(6);
+      expect(improvement).toBeGreaterThanOrEqual(0);
+      expect(episode.components.forwardProgress).toBeGreaterThanOrEqual(0.1);
+      expect(episode.viable).toBe(true);
       expect(episode.components.fallPenalty).toBe(0);
       expect(episode.invalidReason).toBeNull();
-      expect(episode.aggregateFitness).toBe(evolution.champion.fitness);
+      expect(episode.aggregateFitness).toBe(final.champion.fitness);
       return {
         seed,
-        initialBest: initial.bestFitness,
-        finalBest: evolution.champion.fitness,
+        initialBest: initial.champion.fitness,
+        finalBest: final.champion.fitness,
         improvement,
+        initialArchiveSize: initial.archive.length,
+        finalArchiveSize: final.archive.length,
         forwardProgress: episode.components.forwardProgress,
         checksum: episode.finalWorldChecksum,
-        evolution,
       };
     });
 
-    expect(evolve(EVOLUTION_SEEDS[0])).toEqual(runs[0]?.evolution);
+    const improvements = runs.map(({ improvement }) => improvement);
+    expect(improvements.filter((value) => value >= 0.1)).toHaveLength(2);
+    expect(
+      improvements.reduce((sum, value) => sum + value, 0) / improvements.length,
+    ).toBeGreaterThanOrEqual(0.4);
     console.info(
       JSON.stringify({
-        populationSize: DEFAULT_GA_CONFIG.populationSize,
-        generations: DEFAULT_GA_CONFIG.generations,
-        outcomes: runs.map((run) => ({
-          seed: run.seed,
-          initialBest: run.initialBest,
-          finalBest: run.finalBest,
-          improvement: run.improvement,
-          forwardProgress: run.forwardProgress,
-          checksum: run.checksum,
-        })),
+        founders: 24,
+        offspringEvaluations: OFFSPRING_EVALUATIONS,
+        archiveBins: 8,
+        outcomes: runs,
         wallTimeMs: performance.now() - startedAt,
       }),
     );

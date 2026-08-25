@@ -290,19 +290,25 @@ Populate this section after inspecting or creating the repository. Keep only sta
   `packages/sim` owns Rapier world construction, episode stepping, scoring, reset, and replay;
   `packages/worker` owns the versioned batch protocol and off-thread execution boundary.
 - Install: `pnpm install --frozen-lockfile`.
-- Run: `pnpm dev` (current deterministic episode harness; browser app pending Slice 5).
+- Run: `pnpm dev` (browser quality-diversity application).
 - Format: `pnpm format` or `pnpm format:check`.
 - Lint: `pnpm lint`.
 - Typecheck: `pnpm typecheck`.
 - Targeted tests: `pnpm test:core` and `pnpm test:sim`.
 - Full verification: `pnpm verify`.
-- Benchmarks: `pnpm benchmark` (episode reproducibility, fixed-phenotype locomotion, and
-  30-generation controller-improvement gates).
+- Benchmarks: `pnpm benchmark` (episode reproducibility, fixed-quadruped locomotion, and
+  multi-seed continuous quality-diversity improvement gates).
 - Build/package: `pnpm build`.
 - Generated or protected paths: generated `node_modules/`, `.pnpm-store/`, `packages/*/dist/`;
   protected numbered brief files and `docs/brief/PACKAGE-README.md`.
-- Supported browsers/platforms: current verified simulation platform is macOS 26.5.2 arm64
-  with Node 24.14.0; browser support is not claimed before Slice 5 evidence.
-- Project-specific done gate: Slices 1–3 pass; Slice 4 direct/worker equivalence passes and
-  browser responsiveness remains before it closes. The full MVP remains governed by the
-  definition above.
+- Supported browsers/platforms: macOS 26.5.2 arm64 with Node 24.14.0 and Playwright Chromium,
+  Firefox, and WebKit; current source tests, production build, desktop/mobile critical journey,
+  720-evaluation sustained run, and live browser pass.
+- Current experiment: fixed eight-joint quadruped; selectable 6-second quick or 30-second
+  endurance episode; continuous deterministic MAP-Elites-style controller archive; deterministic
+  terrain generator v1; schema-v4 resumable checkpoints with explicit version-2/version-3
+  migration to 6-second trials; worker-protocol-v5 four-course controller diagnostics that do not
+  alter archive selection.
+- Project-specific done gate: all seven original MVP slices pass. The controller-first
+  quality-diversity correction passes core, worker, persistence, benchmark, and browser gates;
+  morphology and neural controllers remain deferred.

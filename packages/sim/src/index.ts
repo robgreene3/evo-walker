@@ -12,6 +12,7 @@ export type {
   EpisodeProvenance,
   EpisodeResult,
   FitnessComponents,
+  TerrainOutcome,
   RotationSnapshot,
   VectorSnapshot,
 } from "./episode.js";

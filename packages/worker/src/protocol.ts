@@ -2,15 +2,35 @@ import type {
   ControllerEvolutionSnapshot,
   GeneticAlgorithmConfig,
   PeriodicControllerGenome,
+  QualityDiversityConfig,
+  QualityDiversitySnapshot,
+  TerrainConfig,
+  EpisodeDurationSeconds,
 } from "@evowalker/core";
 import type { EpisodeResult, FitnessComponents } from "@evowalker/sim";
 
-export const WORKER_PROTOCOL_VERSION = 1 as const;
+export const WORKER_PROTOCOL_VERSION = 5 as const;
 export interface BatchEvaluationRequest {
   readonly kind: "evaluate";
   readonly protocolVersion: number;
   readonly requestId: string;
   readonly genomes: readonly PeriodicControllerGenome[];
+}
+export interface ReplayEpisodeRequest {
+  readonly kind: "replay";
+  readonly protocolVersion: number;
+  readonly requestId: string;
+  readonly genome: PeriodicControllerGenome;
+  readonly terrain: TerrainConfig;
+  readonly episodeDurationSeconds: EpisodeDurationSeconds;
+}
+export interface GeneralizationRequest {
+  readonly kind: "generalize";
+  readonly protocolVersion: number;
+  readonly requestId: string;
+  readonly genome: PeriodicControllerGenome;
+  readonly terrainSeed: number;
+  readonly episodeDurationSeconds: EpisodeDurationSeconds;
 }
 export interface CancelEvaluationRequest {
   readonly kind: "cancel";
@@ -22,6 +42,13 @@ export interface StartEvolutionRequest {
   readonly protocolVersion: number;
   readonly requestId: string;
   readonly config: GeneticAlgorithmConfig;
+}
+export interface StartExplorationRequest {
+  readonly kind: "explore";
+  readonly protocolVersion: number;
+  readonly requestId: string;
+  readonly config: QualityDiversityConfig;
+  readonly checkpoint?: QualityDiversitySnapshot;
 }
 export interface PauseEvolutionRequest {
   readonly kind: "pause";
@@ -35,8 +62,11 @@ export interface ResumeEvolutionRequest {
 }
 export type WorkerRequest =
   | BatchEvaluationRequest
+  | ReplayEpisodeRequest
+  | GeneralizationRequest
   | CancelEvaluationRequest
   | StartEvolutionRequest
+  | StartExplorationRequest
   | PauseEvolutionRequest
   | ResumeEvolutionRequest;
 export interface BatchEvaluationValue {
@@ -59,6 +89,32 @@ export interface CompletedMessage {
   readonly protocolVersion: typeof WORKER_PROTOCOL_VERSION;
   readonly requestId: string;
   readonly values: readonly BatchEvaluationValue[];
+}
+export interface ReplayEpisodeCompletedMessage {
+  readonly kind: "replay-completed";
+  readonly protocolVersion: typeof WORKER_PROTOCOL_VERSION;
+  readonly requestId: string;
+  readonly episode: EpisodeResult;
+}
+export interface GeneralizationCourseResult {
+  readonly terrain: TerrainConfig;
+  readonly label: string;
+  readonly aggregateFitness: number;
+  readonly forwardProgress: number;
+  readonly viable: boolean;
+  readonly obstaclesCleared: number;
+  readonly obstaclesTotal: number;
+  readonly invalidReason: string | null;
+  readonly finalWorldChecksum: string;
+}
+export interface GeneralizationCompletedMessage {
+  readonly kind: "generalization-completed";
+  readonly protocolVersion: typeof WORKER_PROTOCOL_VERSION;
+  readonly requestId: string;
+  readonly courses: readonly GeneralizationCourseResult[];
+  readonly viableCourses: number;
+  readonly meanAggregateFitness: number;
+  readonly worstAggregateFitness: number;
 }
 export interface CancelledMessage {
   readonly kind: "cancelled";
@@ -105,13 +161,46 @@ export interface EvolutionCancelledMessage {
   readonly snapshot: ControllerEvolutionSnapshot;
   readonly championEpisode: EpisodeResult;
 }
+export interface ExplorationProgressMessage {
+  readonly kind: "exploration-progress";
+  readonly protocolVersion: typeof WORKER_PROTOCOL_VERSION;
+  readonly requestId: string;
+  readonly snapshot: QualityDiversitySnapshot;
+  readonly championEpisode: EpisodeResult | null;
+  readonly championChanged: boolean;
+}
+export interface ExplorationPausedMessage {
+  readonly kind: "exploration-paused";
+  readonly protocolVersion: typeof WORKER_PROTOCOL_VERSION;
+  readonly requestId: string;
+  readonly evaluations: number;
+}
+export interface ExplorationResumedMessage {
+  readonly kind: "exploration-resumed";
+  readonly protocolVersion: typeof WORKER_PROTOCOL_VERSION;
+  readonly requestId: string;
+  readonly evaluations: number;
+}
+export interface ExplorationStoppedMessage {
+  readonly kind: "exploration-stopped";
+  readonly protocolVersion: typeof WORKER_PROTOCOL_VERSION;
+  readonly requestId: string;
+  readonly snapshot: QualityDiversitySnapshot;
+  readonly championEpisode: EpisodeResult | null;
+}
 export type WorkerResponse =
   | ProgressMessage
   | CompletedMessage
+  | ReplayEpisodeCompletedMessage
+  | GeneralizationCompletedMessage
   | CancelledMessage
   | ErrorMessage
   | EvolutionProgressMessage
   | EvolutionPausedMessage
   | EvolutionResumedMessage
   | EvolutionCompletedMessage
-  | EvolutionCancelledMessage;
+  | EvolutionCancelledMessage
+  | ExplorationProgressMessage
+  | ExplorationPausedMessage
+  | ExplorationResumedMessage
+  | ExplorationStoppedMessage;

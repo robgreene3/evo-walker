@@ -1,11 +1,11 @@
-import type { GenerationSummary } from "@evowalker/core";
+import type { QualityDiversityHistoryPoint } from "@evowalker/core";
 
 interface FitnessChartProps {
-  readonly history: readonly GenerationSummary[];
+  readonly history: readonly QualityDiversityHistoryPoint[];
 }
 
 const WIDTH = 600;
-const HEIGHT = 180;
+const HEIGHT = 150;
 const PADDING = 18;
 
 function points(
@@ -26,36 +26,27 @@ function points(
 
 export function FitnessChart({ history }: FitnessChartProps) {
   if (history.length === 0) return null;
-  const best = history.map(({ bestFitness }) => bestFitness);
-  const median = history.map(({ medianFitness }) => medianFitness);
-  const values = [...best, ...median];
-  const minimum = Math.min(...values);
-  const maximum = Math.max(...values);
+  const best = history.map(({ bestFitness }) => bestFitness ?? 0);
+  const minimum = Math.min(...best);
+  const maximum = Math.max(...best);
   const span = Math.max(Number.EPSILON, maximum - minimum);
+  const latest = history.at(-1);
 
   return (
     <figure className="fitness-chart" aria-labelledby="fitness-chart-title">
       <figcaption id="fitness-chart-title">
-        Fitness history
-        <span className="chart-legend" aria-hidden="true">
-          <i className="legend-best" /> best <i className="legend-median" />{" "}
-          median
-        </span>
+        Viable champion history<span>rolling checkpoint evidence</span>
       </figcaption>
       <svg
         viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
         role="img"
-        aria-label={`Best fitness ${best.at(-1)?.toFixed(3)} and median fitness ${median.at(-1)?.toFixed(3)} at generation ${history.length - 1}.`}
+        aria-label={`Best viable fitness ${latest?.bestFitness?.toFixed(3) ?? "not available"} after ${String(latest?.evaluation ?? 0)} evaluations.`}
       >
         <line
           x1={PADDING}
           y1={HEIGHT - PADDING}
           x2={WIDTH - PADDING}
           y2={HEIGHT - PADDING}
-        />
-        <polyline
-          className="median-line"
-          points={points(median, minimum, span)}
         />
         <polyline className="best-line" points={points(best, minimum, span)} />
       </svg>

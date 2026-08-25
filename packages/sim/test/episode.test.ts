@@ -1,4 +1,8 @@
-import { createSeededController } from "@evowalker/core";
+import {
+  DEFAULT_TERRAIN_CONFIG,
+  TERRAIN_KINDS,
+  createSeededController,
+} from "@evowalker/core";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -20,6 +24,8 @@ function expectFiniteResult(
     result.components.actuationEnergyPenalty,
     result.components.lateralDriftPenalty,
     result.components.invalidPenalty,
+    result.gait.dutyFactor,
+    result.gait.diagonalCoordination,
   ];
   expect(values.every(Number.isFinite)).toBe(true);
   for (const frame of result.frames) {
@@ -43,10 +49,10 @@ describe("deterministic articulated creature episode", () => {
   it("terminates at the fixed duration with finite component fitness", () => {
     const result = runDeterministicEpisode(createSeededController(7_311));
 
-    expect(result.terminatedAtStep).toBe(360);
+    expect(result.terminatedAtStep).toBe(720);
     expect(result.elapsedSeconds).toBe(DEFAULT_EPISODE_CONFIG.durationSeconds);
     expect(result.invalidReason).toBeNull();
-    expect(result.frames).toHaveLength(31);
+    expect(result.frames).toHaveLength(61);
     expect(Object.keys(result.components)).toEqual([
       "forwardProgress",
       "uprightBonus",
@@ -55,6 +61,11 @@ describe("deterministic articulated creature episode", () => {
       "lateralDriftPenalty",
       "invalidPenalty",
     ]);
+    expect(result.gait.dutyFactor).toBeGreaterThanOrEqual(0);
+    expect(result.gait.dutyFactor).toBeLessThanOrEqual(1);
+    expect(result.gait.diagonalCoordination).toBeGreaterThanOrEqual(0);
+    expect(result.gait.diagonalCoordination).toBeLessThanOrEqual(1);
+    expect(typeof result.viable).toBe("boolean");
     expectFiniteResult(result);
   });
 
@@ -81,6 +92,23 @@ describe("deterministic articulated creature episode", () => {
       expect(replay).toEqual(first);
     } finally {
       episode.dispose();
+    }
+  });
+
+  it("repeats seeded terrain episodes without state leakage", () => {
+    for (const kind of TERRAIN_KINDS.filter((value) => value !== "flat")) {
+      const config = {
+        ...DEFAULT_EPISODE_CONFIG,
+        terrain: { ...DEFAULT_TERRAIN_CONFIG, kind, seed: 42 },
+      };
+      const controller = createSeededController(42);
+      const first = runDeterministicEpisode(controller, config);
+      const replay = runDeterministicEpisode(controller, config);
+
+      expect(replay).toEqual(first);
+      expect(first.terrain.label.length).toBeGreaterThan(0);
+      expect(first.terrain.obstaclesTotal).toBeGreaterThan(0);
+      expectFiniteResult(first);
     }
   });
 

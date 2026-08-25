@@ -358,6 +358,7 @@ Cycle 1 values exactly. The Rapier initializer warning documented above remains 
 
 - Testable hypothesis: a strict version-1 JSON document containing the complete inspectable
   generation snapshot and champion episode can round-trip locally without numerical drift.
+
 - Predicted result: local save/load and JSON export/import restore configuration, PRNG identity,
   physics provenance, history genomes, population champion, lineage, component fitness, frames,
   invalid reason, and checksum exactly; corrupt, oversized, non-finite, inconsistent, and
@@ -470,3 +471,353 @@ controller work.
 - Decision: **KEEP**. The documented install, standalone benchmark, and consolidated verification
   commands now work without warm generated artifacts while retaining pnpm's deny-by-default
   lifecycle policy for every dependency except the reviewed pinned esbuild package.
+
+## Cycle 8: continuous viable gait archive
+
+- User-visible defect: the finite biped demo repeatedly restarted its replay, then stopped with
+  a fallen creature; it did not communicate continued emergent evolution.
+- Baseline: clean repository at `be0a7c6`; `main`/`origin/main` pointed there and the existing
+  `controller-first-mvp` tag pointed to `384daf3`.
+- Testable hypothesis: an eight-joint fixed quadruped plus a deterministic, viability-gated
+  MAP-Elites-style controller archive can produce sustained visible progress without renderer
+  resets or morphology evolution.
+- Predicted result: default seed 42 produces a complete non-falling champion and multiple gait
+  niches during an ordinary interactive session; search continues until Pause/Stop; checkpoint
+  continuation is exact; controls remain responsive.
+- Guardrails: fixed topology, periodic controller only, deterministic Rapier and Mulberry32,
+  component fitness, preserved briefs/tag, no neural controller, morphology genes, backend,
+  telemetry, accounts, or biological/open-ended-evolution claim.
+- Falsifier: no viable founder, fallen archive champion, checkpoint drift, main-thread lockup,
+  replay renderer recreation on progress, schema replacement before validation, browser console
+  error, or benchmark non-improvement.
+- Initial failure: the first knee-offset range exceeded its declared controller bound. The
+  controller validator rejected it before physics, so the range was corrected without relaxing
+  the bound.
+- Stability revision: broadened stance, reduced founder amplitudes, and ramped motor targets over
+  0.5 seconds. Canonical seed 42 then completed the full six-second trial; moving-but-falling
+  seeds remained non-viable and were excluded from the archive.
+- Algorithm observation: uninterrupted/resumed core sessions matched exactly. Across seeds 7,
+  42, and 99 with 24 founders, an 8×8 archive, and 128 offspring evaluations, archive sizes grew
+  `3→13`, `3→16`, and `3→14`. Champion fitness changed `1.491992→1.491992`,
+  `0.749283→1.478941`, and `0.426209→1.286761`; all final champions were viable and moved
+  `1.324887`, `1.308782`, and `1.116046` metres respectively.
+- Browser observation: the live production page reached 57 evaluations and 10/64 niches in about
+  1.2 seconds, with fitness `1.37580`, progress `1.2035`, and zero fall penalty. Continued running
+  reached evaluation 512, 22/64 niches, fitness `1.48828`, progress `1.3133`, and zero fall
+  penalty; Pause held that exact boundary and browser error logs were empty.
+- UI observation: Three.js remained mounted while snapshots advanced; champions queue until a
+  loop boundary. Full-page inspection showed the quadruped, trace, heatmap, components, all eight
+  joint rows, and ancestry together. The authored Chromium suite passed keyboard start,
+  pause/resume/stop stability, local save/load, unsupported import, reduced motion, and 390×844
+  width in 15.8 seconds.
+- Decision: **KEEP**. The user-visible defect is corrected within the controller-first boundary.
+  “Gait ecology” means a two-descriptor archive, not open-ended morphology or ecology.
+
+Observed targeted verification before the consolidated release run:
+
+```text
+pnpm test
+  PASS: 9 files, 25 tests.
+
+pnpm lint && pnpm typecheck && pnpm build
+  PASS: no diagnostics; production build completed.
+
+pnpm test:e2e
+  PASS: 3 Chromium journeys in 15.8 seconds.
+
+pnpm verify
+  PASS: formatting, lint, strict typecheck, 9 files / 25 source tests,
+        4 files / 4 benchmark tests in 42.13 seconds, production build,
+        and 3 Chromium journeys in 15.8 seconds.
+```
+
+The production build retains Vite's advisory for the large deterministic-WASM/Three.js chunks.
+It is a measured optimization trigger, not a correctness failure. Profile and code-split before
+adding more rendering or simulation dependencies.
+
+## Cycle 9: interactive gait atlas lovability pass
+
+- User-visible uncertainty: the continuous archive is scientifically real and visually legible,
+  but occupied cells are passive telemetry; a user cannot experience the diverse creatures the
+  archive claims to contain.
+- Baseline: clean local commit `e0fba1b`; live default seed 42 reached 112 evaluations and 14/64
+  niches during review, but only the aggregate champion could be replayed. The chassis remained a
+  plain box and articulated joints were not visually identified.
+- Product judgment: **NOT YET LOVED**. The application is credible and handsome, but the most
+  distinctive result—behavioral diversity—cannot be touched, compared, or remembered.
+- Testable hypothesis: turning occupied archive cells into keyboard-accessible replay controls,
+  evaluating the selected genome in a separate inspection worker, and clearly distinguishing
+  “live champion” from “atlas specimen” will make discovery experiential while the primary
+  evolution worker continues uninterrupted.
+- Predicted result: selecting any occupied niche produces its deterministic episode and metadata,
+  does not change the archive/evaluation stream, and offers an explicit return to the live
+  champion. A modest rounded-chassis and luminous-joint treatment improves creature readability
+  without misrepresenting body count or authoritative transforms.
+- Guardrails: fixed eight-joint topology and existing controller genes; unchanged physics,
+  scoring, descriptors, archive algorithm, canonical seeds, persistence schema, and critical
+  controls; no morphology evolution, neural controller, audio dependency, backend, or telemetry.
+- Falsifier: selection pauses/restarts evolution, returns a checksum/fitness inconsistent with
+  direct simulation, makes empty cells interactive, traps keyboard focus, obscures whether the
+  displayed gait is champion or specimen, introduces console errors, or regresses checkpoint and
+  benchmark evidence.
+- Intervention: worker protocol v2 adds a single-genome deterministic replay request. Occupied
+  archive cells became focusable buttons; a dedicated inspection worker must reproduce fitness
+  and both behavior descriptors within `1e-9` before the specimen, its controller, components,
+  and ancestry replace the display. “Follow live champion” exits inspection without touching the
+  exploration worker. The renderer gained a rounded torso and eight luminous joint markers at
+  the existing physical anchors; authoritative transforms and physics were unchanged.
+- Live browser observation: seed 42 advanced from 195 to 279 evaluations while evaluation 7's
+  non-champion gait was selected. Its archived fitness `0.312` reproduced as `0.31160`, its ground
+  contact and diagonal-rhythm descriptors reproduced as `0.714` and `0.352`, the archive grew
+  from 18 to 19 occupied niches, and returning to the champion restored all champion-labelled
+  panels. At later observation the same uninterrupted run had reached 3,038 evaluations, 25/64
+  niches, and a viable `1.51858` champion.
+- Test revision: the first new Playwright assertion retained `.first()` while the live archive
+  inserted cells ahead of the selected one. That locator no longer denoted the activated cell;
+  the assertion was corrected to the stable selected-state identity, then the isolated journey
+  passed in 8.8 seconds. No product behavior was weakened.
+- Consolidated observation: Node 24.14.0 `pnpm verify` passed Prettier, ESLint, strict TypeScript,
+  10 source-test files with 27 tests, all 4 canonical benchmark files/tests in 43.03 seconds, the
+  production build, and 4 Chromium journeys in 26.5 seconds. The browser journeys record console
+  and page errors and observed none. The existing deterministic-WASM/Three.js chunk-size advisory
+  and Rapier initialization deprecation notice remain non-fatal.
+- Integrity observation: all four protected brief SHA-256 hashes still match Cycle 1,
+  `git diff --check` passes, and `packages/` plus `apps/` contain no `Math.random()` calls.
+- Decision: **KEEP — personally compelling within the controller-first MVP boundary**. The
+  archive now feels like a collection of discoverable living behaviors rather than passive
+  telemetry, while every scientific and scope guardrail remains intact. Additional browser
+  engines and longer unattended interaction remain release-hardening triggers, not reasons to
+  broaden into morphology or neural controllers.
+
+## Cycle 10: browser portability and sustained-run gate
+
+- Remaining uncertainty: the finished controller-first journey is automated only in Chromium;
+  the 3,038-evaluation run is useful live evidence but not a repeatable release gate, and the
+  reduced-motion mobile journey currently observes only the empty initial state.
+- Testable hypothesis: the unchanged production build can run its critical journey in Chromium,
+  Firefox, and WebKit, while a canonical seed-42 archive reaches at least 720 complete evaluations
+  without main-thread lockup, non-finite metrics, worker failure, or loss of pause/save recovery.
+- Predicted result: all three engines pass start, worker execution, checkpoint persistence,
+  archive specimen replay, keyboard control, unsupported-import recovery, and reduced-motion
+  mobile layout. The sustained Chromium run remains responsive, pauses at a complete boundary,
+  retains a viable replay, and serializes a validated local checkpoint.
+- Guardrails: no simulation, fitness, controller, archive, schema, dependency-version, topology,
+  or benchmark-threshold changes; no test-only application hooks; no claim of cross-engine
+  bitwise physics equality without direct evidence.
+- Falsifier: any engine cannot initialize Rapier/WebGL or complete the critical path; the soak
+  stalls before 720 evaluations, emits an error, produces NaN/Infinity, loses its replay/archive,
+  fails to pause/save, or the running 390×844 layout overflows horizontally.
+- Targeted cross-engine observation: the unchanged production build passed all eight applicable
+  Firefox 153.0 and WebKit 26.5 journeys in 44.8 seconds. Both engines initialized Rapier and
+  WebGL, evolved a viable archive, paused/resumed/stopped at evaluation boundaries, restored a
+  local checkpoint, rejected the incompatible fixture, reproduced an archive specimen while
+  exploration continued, and completed the active reduced-motion 390×844 layout without runtime
+  errors or horizontal overflow.
+- Sustained-run observation: Playwright Chromium 151.0.7922.34 reached at least 720 complete
+  seed-42 evaluations in 1.2 minutes. Pause remained actionable at the next boundary; the replay
+  was enabled, stability reported a full trial, aggregate and metric values were finite, an
+  occupied archive cell remained visible, local checkpoint serialization succeeded, and Stop
+  completed without console/page errors.
+- Consolidated observation: Node 24.14.0 `pnpm verify` passed Prettier, ESLint, strict TypeScript,
+  10 source-test files with 27 tests, all 4 canonical benchmark files/tests in 40.08 seconds, the
+  production build, and the 15-entry browser matrix with 13 passes plus 2 intentional
+  non-Chromium soak skips in 1.7 minutes. The pre-existing Rapier initializer and large-chunk
+  advisories remain non-fatal and unchanged.
+- Release-infrastructure review: the GitHub Actions browser installation was expanded from only
+  Chromium to the same pinned Chromium/Firefox/WebKit set required by `pnpm verify`; a hosted run
+  for this local branch remains unobserved until publication is separately authorized.
+- Integrity observation: all four protected brief hashes still match Cycle 1, `git diff --check`
+  passes, and experiment-affecting source contains no `Math.random()` calls.
+- Decision: **KEEP**. Multi-engine behavior and the sustained interactive session now have
+  repeatable release evidence. This qualifies browser functionality and responsiveness, not
+  cross-engine bitwise physics identity; the public `1e-9` numerical policy remains honest until
+  directly compared episode evidence exists.
+
+## Cycle 11: deterministic terrain selection pressure
+
+- User-visible slice: let users evolve and replay the unchanged eight-joint quadruped on a flat
+  proving ground, gentle rise, low curb trail, or shallow uneven trail, with the exact course
+  preserved across workers and checkpoints.
+- Baseline: the quality-diversity archive ran only on an infinite flat plane. Level-ground gaits
+  were reproducible and inspectable, but viewing did not expose adaptation to changing physical
+  demands.
+- Testable hypothesis: bounded seeded terrain can make controller evolution visibly more dynamic
+  while preserving deterministic reset/replay, useful selection signal, and the flat baseline.
+- Predicted result: for each non-flat course, a seed-42 run with 24 founders plus 96 advances finds
+  a complete viable champion moving at least `0.25` metres, crossing at least one feature,
+  occupying at least three gait niches, and replaying exactly.
+- Guardrails: fixed body, eight-joint periodic genome, fitness equation and weights, search
+  operators, six-second episode, timestep, canonical flat benchmarks, and no backend/telemetry.
+  “Features cleared” is displayed evidence and is not added to fitness.
+- Falsifier: a course has no viable feature-crossing controller within the declared budget,
+  reset/replay differs, direct/worker terrain differs, persisted terrain changes on restore, or
+  the rendered geometry is not generated from the same immutable course description.
+- Bounded revisions: the first ramp extended beyond the six-second locomotion envelope, so only
+  its length was shortened. Initial curb geometry overlapped the creature's settling stance, so
+  the first feature was moved ahead and lowered. The first uneven boundary was similarly moved
+  just beyond the stance. No controller, body, fitness, or search parameter changed.
+- Targeted benchmark observation: all three non-flat courses passed exact replay and selection
+  gates after 120 evaluations each. Gentle rise reached `1.3730 m`, cleared `1/1`, and occupied 5
+  niches; curb trail reached `1.2844 m`, cleared `1/2`, and occupied 15 niches; uneven trail
+  reached `1.0306 m`, cleared `1/5`, and occupied 12 niches. The test completed in 35.84 seconds.
+- Persistence observation: schema v3 records terrain kind, seed, and generator version in search,
+  physics, and episode provenance; inconsistent copies fail strict validation. A valid schema-v2
+  archive migrates explicitly to flat terrain, while malformed v2 and unsupported v1 inputs fail
+  without replacing current state.
+- Browser observation: the production terrain save/restore journey passed Chromium, Firefox, and
+  WebKit in 32.2 seconds. It ran a seed-99 uneven course, observed an occupied archive and feature
+  counts, saved, started flat, restored, and recovered the uneven terrain plus course seed without
+  console or page errors.
+- Live visual observation: the production UI on an uneven seed-99 course remained responsive past
+  122 complete evaluations. It displayed a viable `1.27648` champion with `1.0989 m` forward
+  progress, full-trial stability, `1/5` features cleared, four occupied niches, course controls,
+  physical terrain, controller genes, fitness components, and ancestry without a runtime error.
+- Consolidated local observation: Node 24.14.0 passed Prettier, ESLint, strict TypeScript, all 11
+  source-test files with 32 tests, all 5 benchmark files, and the Vite production build. Protected
+  brief hashes match Cycle 1; `git diff --check` passes; application source contains no
+  `Math.random()` call. Vite retains its existing large-chunk advisory, and Rapier retains its
+  non-fatal initialization deprecation notice.
+- Verification limit: a final rerun of the complete 18-entry browser matrix, including the
+  unchanged 720-evaluation soak, was blocked by the execution environment's external credit
+  limit. The new terrain journey itself passed all three engines; Cycle 10 remains the most recent
+  full-matrix and soak evidence.
+- Decision: **KEEP**. The result adds visible environmental pressure and a longer experimental
+  path while retaining controller-first causal clarity. The next bounded improvement should test
+  cross-course transfer or curricula before morphology genes.
+
+## Cycle 12: selectable thirty-second endurance episodes
+
+- User-visible slice: let users select a thirty-second simulated endurance trial before starting
+  evolution, replay the complete longer champion, and recover the same duration after save/load.
+- Baseline: every authoritative evaluation and replay lasted six seconds. That supports rapid
+  search but does not distinguish a gait that remains useful over a longer horizon.
+- Testable hypothesis: an unchanged controller-first search can produce exactly reproducible,
+  fully viable thirty-second locomotion within the established 120-evaluation interactive budget.
+- Predicted result: exact 30-second replay, no invalid state, a viable champion moving at least
+  `0.25 m`, multiple occupied gait niches, and worker cost near the expected fivefold duration
+  increase without moving simulation onto the UI thread.
+- Guardrails: six seconds remains the default; unchanged fixed morphology, periodic genes,
+  fitness equation and weights, terrain, timestep, settling interval, search operators, and no
+  backend or telemetry. Duration must be persisted and validated rather than treated as a visual
+  replay preference.
+- Falsifier: non-deterministic replay, NaN/Infinity, no viable `0.25 m` champion at 120 evaluations,
+  unsupported duration accepted, checkpoint disagreement, or unusable worker/browser response.
+- Baseline comparison: five canonical controllers reproduced exactly at 30 seconds. Individual
+  evaluation wall time increased from roughly 87–139 ms at six seconds to 394–456 ms at thirty
+  seconds. Four controllers already non-viable at six seconds made almost no later progress,
+  demonstrating that merely stretching the old replay would not create endurance behavior.
+- Failed first intervention: a seed-42 search with 24 founders plus 40 advances found a viable
+  thirty-second controller but only `0.194837 m` progress. This failed the predeclared `0.25 m`
+  gate; the success measure was not reduced.
+- Bounded revision: reuse the terrain cycle's established 24-founder plus 96-advance budget. At
+  120 evaluations the champion completed 30 seconds, moved `0.502754 m`, occupied one of six gait
+  niches, reproduced exactly with checksum `ab7190ce`, and completed the search gate in 52.05
+  seconds.
+- Implementation: worker protocol v4 propagates the selected duration through evolution and
+  archive inspection. Schema v4 requires duration agreement across search configuration, physics
+  metadata, and champion elapsed time. Valid v2/v3 archives migrate explicitly to six seconds;
+  unsupported or inconsistent data fails before state replacement.
+- Consolidated local observation: Node 24.14.0 passed Prettier, ESLint, strict TypeScript, all 11
+  source-test files with 34 tests, all 6 benchmark files with 7 tests in 59.22 seconds, and the
+  Vite production build. The worker suite directly returned a viable 30-second champion, and
+  schema-v4 round-tripped a 30-second checkpoint with no champion yet. Protected brief hashes
+  match Cycle 1, `git diff --check` passes, and application source contains no `Math.random()`.
+  The existing Vite large-chunk and Rapier initializer advisories remain non-fatal.
+- Browser gate authored: the production journey selects endurance mode, observes a viable archive,
+  stops and saves, starts a six-second experiment, then restores the thirty-second checkpoint and
+  its full-trial label. Automated execution remains pending because the in-app browser URL policy
+  blocked re-entry to the restarted local preview; no alternate browser surface was used.
+
+## Cycle 13: four-course controller challenge
+
+- User-visible slice: challenge the live champion or an inspected archive specimen on every
+  existing terrain and expose a compact, scientifically honest transfer report.
+- Baseline: each archive and replay used exactly one selected course. Users could manually start
+  four separate experiments, but could not hold the controller fixed or compare deterministic
+  results without changing authoritative state.
+- Testable hypothesis: a separate worker can run the same controller on all four course kinds and
+  return summaries exactly equal to direct simulation while the live archive remains unchanged
+  and the interface stays responsive.
+- Predicted result: four ordered results expose viability, aggregate fitness, forward progress,
+  feature clearance, and checksum; direct and worker values match exactly; the panel has no
+  desktop/mobile page overflow or runtime error.
+- Guardrails: unchanged genome, body, physics, fitness, descriptors, archive operators, terrain
+  generator, episode duration, PRNG/checkpoint, persistence schema, dependencies, and search
+  selection. The report is diagnostic and never feeds back into evolution.
+- Falsifier: any direct/worker mismatch, archive or PRNG mutation, main-thread lockup, ambiguous
+  result ownership, console/runtime error, or page-width overflow.
+- Targeted source observation: worker protocol v5 returned exactly the direct deterministic
+  fitness, progress, viability, feature clearance, and checksum for all four terrain kinds. Five
+  worker test files with 11 tests passed; the new test contributes two cases, including invalid
+  terrain-seed rejection before simulation.
+- Browser observation: the changed production Chromium journey passed in 15.6 seconds. A separate
+  visual run produced four rows, no framework overlay, no console/page error, exact 1440-pixel
+  desktop width, and exact 390-pixel mobile width with the wide result table contained in its own
+  horizontal scroller. The observed seed-42, four-founder sample was viable on 4/4 courses; this
+  proves the diagnostic path, not general controller robustness.
+- Benchmark observation: the first parallel consolidated run completed all 12 source files and
+  36 tests, then the existing Node cancellation benchmark observed three rather than exactly two
+  completed episodes under scheduler contention. The isolated benchmark immediately passed the
+  exact-two boundary, and a complete unchanged rerun passed all 6 benchmark files / 7 tests in
+  60.62 seconds. No threshold was relaxed; repeat failure remains a timing-stability trigger.
+- Release-gate revision: the first completed three-engine matrix exposed two stale timing/text
+  assumptions outside the new diagnostic. The Chromium soak still asserted the superseded
+  pre-duration label `full trial` while the product correctly reports `full 6s`; the assertion now
+  matches the persisted duration contract. Concurrent Firefox endurance search exceeded the
+  generic 30-second assertion limit, so only that test's wait/test budgets were raised to 120/180
+  seconds in line with the already measured fivefold compute cost. Founders, selection, success
+  conditions, and product behavior were unchanged.
+- Contention revision: rerunning Firefox endurance beside the Chromium 720-evaluation soak still
+  produced no viable niche within 120 seconds. The projects were consuming the same CPU while
+  pretending to be independent performance observations. Playwright now uses one worker so each
+  CPU-bound browser journey receives an uncontended, repeatable budget. Coverage, browser engines,
+  product settings, viability gates, and the soak threshold remain unchanged; only accidental
+  cross-project contention is removed.
+- Consolidated observation: under Node 24, `pnpm verify` passed Prettier, ESLint, strict
+  TypeScript, all 12 source-test files / 36 tests, all 6 benchmark files / 7 tests in 56.96
+  seconds, the Vite production build, and the serialized 21-entry browser matrix with 19 passes
+  plus the 2 intentional non-Chromium soak skips in 5.7 minutes. Chromium, Firefox, and WebKit all
+  completed the cross-course report, endurance checkpoint, terrain recovery, specimen replay,
+  and reduced-motion mobile journey without console/page errors. Chromium alone passed the
+  calibrated 720-evaluation soak. The existing Rapier initializer and large-chunk advisories
+  remain non-fatal and unchanged.
+- Hosted-run observation: pull-request run `32905004615` passed formatting, lint, strict types,
+  all 36 source tests, all 7 benchmarks, and the production build, then exposed two runner-specific
+  defects. Chromium reached 518/720 evaluations before the locally calibrated 80-second cutoff.
+  Continuing every engine inside that long Playwright process then left Firefox unable to load
+  the initial app while WebKit subsequently passed. This is hosted verification failure evidence;
+  the pull request was not merged.
+- Hosted-run revision: local runs retain the measured 80-second Chromium throughput gate. CI must
+  still reach all 720 evaluations but receives 180 seconds on shared hardware. GitHub now runs
+  Chromium, Firefox, and WebKit in separate Playwright processes after one shared source/benchmark
+  build step, preventing cross-engine browser/WASM memory carryover. The job timeout increases to
+  30 minutes to contain the unchanged coverage. No product behavior, viability threshold, browser
+  engine, source test, benchmark, or soak evaluation count changed. A local CI-mode reproduction
+  then passed the three fresh processes sequentially: Chromium 7/7 in 3.0 minutes, Firefox 6/6 in
+  3.7 minutes, and WebKit 6/6 in 41.9 seconds, with only the two intended non-Chromium soak skips.
+- Hosted-run isolation revision: pull-request run `32907365970` proved the revised core gate and
+  Chromium journey, including all 720 soak evaluations. Firefox then failed to render the app in
+  six independent contexts despite its fresh Playwright process; even the first form input was
+  absent, while the skipped soak remained the only non-failure. This localizes the defect to
+  browser-machine state rather than search viability. Core verification and each browser now use
+  separate GitHub jobs and clean runners. The browser matrix waits for the core gate, installs only
+  its own engine, and keeps all three engines visible even if one fails. Tests, timeouts, engines,
+  product behavior, and scientific thresholds remain unchanged.
+- Hosted WebGL revision: pull-request run `32908762254` passed Core in 1 minute 57 seconds, WebKit
+  in 2 minutes 1 second, and Chromium in 4 minutes 25 seconds, including all 720 evaluations.
+  Firefox still rendered no application on its independent runner, falsifying cross-browser
+  machine carryover. The replay renderer previously constructed required WebGL2 inside an
+  unguarded React effect, so an unavailable context could unmount the whole interface. It now
+  probes the exact WebGL2 capability, immediately releases the probe, preserves Three.js's normal
+  renderer path, and otherwise shows a clear replay fallback while evolution, results, and
+  checkpoints remain usable. A forced no-WebGL journey passed in Chromium, Firefox, and WebKit in
+  13.2 seconds with no console/page errors; the normal critical journey then passed in all three in
+  43.8 seconds. The expanded local matrix passed 21 functional journeys plus two intentional skips;
+  only the 80-second local soak missed at 673/720. Isolated modified runs reached 671–681, while an
+  untouched detached `745393c` baseline reached 680 under the same conditions, attributing the miss
+  to current host throughput rather than this revision. The 720 target remains unchanged and still
+  governs CI with its existing 180-second shared-runner allowance; the final current-code CI-policy
+  soak passed all 720 evaluations in 1.5 minutes.
+- Decision: **KEEP**. Cross-course transfer is now visible without changing selection pressure.
+  A curriculum or generalist objective remains deferred until repeated diagnostic evidence can
+  justify a predeclared rule and its fourfold evaluation cost.

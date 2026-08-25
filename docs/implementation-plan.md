@@ -17,8 +17,40 @@ Status as of 2026-08-01:
 5. **Critical UI journey — complete with browser evidence.** React and Three.js integrate the
    browser worker; the observed default journey, responsive layouts, and cancellation gate pass.
 6. **Persistence and recovery — complete.** Versioned local and JSON state is strictly validated.
-7. **Release verification — complete.** Automated Chromium journeys, accessibility and responsive
-   behavior, performance evidence, production advisory, integrity, and recovery gates pass.
+7. **Release verification — complete.** Automated Chromium, Firefox, and WebKit journeys,
+   accessibility and responsive behavior, a 720-evaluation sustained-run gate, performance
+   evidence, production advisory, integrity, and recovery gates pass.
 
 All seven controller-first MVP slices pass. Morphology evolution remains out of scope and requires
 separate explicit authorization.
+
+## Controller-first post-MVP correction — complete
+
+The fixed body is now an eight-joint quadruped and the primary worker runs a resumable continuous
+quality-diversity archive. Viability-gated scoring, gait descriptors, deterministic checkpoint
+resume, uninterrupted replay, archive visualization, revised benchmarks, and browser journeys
+pass. The older generational GA remains as a compatibility baseline; body topology still does not
+evolve.
+
+## Controller-first terrain generalization — complete
+
+The fixed morphology and periodic controller now run on four deterministic physical courses.
+Terrain configuration is shared by direct simulation, worker evaluation, replay rendering, and
+schema-v4 persistence. The original flat course remains unchanged; a seeded mild-course benchmark
+and three-engine save/restore journey prove useful selection signal and reproducible recovery.
+Morphology, controller representation, fitness weights, and evolutionary operators remain fixed.
+
+## Selectable endurance episodes — complete
+
+Six-second quick trials remain the default. A persisted thirty-second endurance option uses the
+same fixed timestep, body, controller, fitness, archive, terrain, and worker boundary. A bounded
+comparison and 120-evaluation search gate establish exact replay and a viable sustained champion;
+the longer mode costs roughly five times more computation and is labelled accordingly.
+
+## Cross-course controller challenge — complete
+
+The current champion or an inspected archive specimen can run unchanged across all four existing
+terrain courses in a dedicated worker. The UI reports viability, aggregate fitness, forward
+progress, feature clearance, and final-world checksum per course plus deliberately simple summary
+statistics. The diagnostic does not feed results back into the archive, add a curriculum, or
+change the genome, physics, fitness, persistence schema, or search operators.

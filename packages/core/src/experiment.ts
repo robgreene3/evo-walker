@@ -92,6 +92,12 @@ const episodeSchema = z.strictObject({
   elapsedSeconds: finite.nonnegative(),
   aggregateFitness: finite,
   components: fitnessComponentsSchema,
+  gait: z.strictObject({
+    dutyFactor: finite.min(0).max(1),
+    diagonalCoordination: finite.min(0).max(1),
+  }),
+  viable: z.boolean(),
+  fallAtStep: z.number().int().min(0).max(100_000).nullable(),
   invalidReason: z.string().min(1).max(512).nullable(),
   actuationEnergyProxy: finite.nonnegative(),
   frames: z
@@ -206,7 +212,24 @@ export function createExperimentDocument(
   snapshot: ControllerEvolutionSnapshot,
   championEpisode: unknown,
 ): ExperimentDocument {
-  const parsedEpisode = episodeSchema.parse(championEpisode);
+  let legacyEpisode = championEpisode;
+  if (championEpisode !== null && typeof championEpisode === "object") {
+    const episodeRecord = championEpisode as Record<string, unknown>;
+    const provenance = episodeRecord["provenance"];
+    const episodeWithoutTerrain = Object.fromEntries(
+      Object.entries(episodeRecord).filter(([key]) => key !== "terrain"),
+    );
+    if (provenance !== null && typeof provenance === "object") {
+      const legacyProvenance = Object.fromEntries(
+        Object.entries(provenance).filter(([key]) => key !== "terrain"),
+      );
+      legacyEpisode = {
+        ...episodeWithoutTerrain,
+        provenance: legacyProvenance,
+      };
+    }
+  }
+  const parsedEpisode = episodeSchema.parse(legacyEpisode);
   return validateDocument({
     schemaVersion: EXPERIMENT_SCHEMA_VERSION,
     buildVersion: EXPERIMENT_BUILD_VERSION,
@@ -216,8 +239,8 @@ export function createExperimentDocument(
       rapierEngineVersion: parsedEpisode.provenance.rapierEngineVersion,
       timestepSeconds: parsedEpisode.provenance.timestepSeconds,
       substeps: parsedEpisode.provenance.substeps,
-      durationSeconds: 3,
-      settlingSeconds: 1,
+      durationSeconds: 6,
+      settlingSeconds: 0.75,
       snapshotEverySteps: 12,
     },
     snapshot,

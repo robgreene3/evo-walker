@@ -197,7 +197,7 @@ h2 {
 }
 .experiment-controls {
   display: grid;
-  grid-template-columns: repeat(3, 108px);
+  grid-template-columns: repeat(6, minmax(108px, auto));
   gap: 0.65rem;
 }
 label {
@@ -263,6 +263,11 @@ select {
 .status-resuming {
   background: var(--mint);
   box-shadow: 0 0 0 5px rgba(85, 214, 190, 0.12);
+}
+.status-paused,
+.status-loaded {
+  background: var(--gold);
+  box-shadow: 0 0 0 5px rgba(255, 200, 87, 0.12);
 }
 .status-completed {
   background: var(--gold);
@@ -387,6 +392,44 @@ select {
   height: 540px;
   background: #081019;
 }
+.specimen-ribbon {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 1rem;
+  padding: 11px 14px 11px 20px;
+  border-bottom: 1px solid rgba(255, 200, 87, 0.24);
+  background: linear-gradient(
+    90deg,
+    rgba(255, 200, 87, 0.11),
+    rgba(85, 214, 190, 0.055)
+  );
+}
+.specimen-ribbon > span:first-child {
+  display: grid;
+  gap: 0.15rem;
+}
+.specimen-ribbon strong,
+.specimen-ribbon small,
+.inspection-state {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+.specimen-ribbon strong {
+  color: var(--gold);
+  font-size: 0.72rem;
+}
+.specimen-ribbon small,
+.inspection-state {
+  color: var(--muted);
+  font-size: 0.66rem;
+}
+.inspection-state.ready {
+  color: var(--mint);
+}
+.inspection-state.error {
+  max-width: 260px;
+  color: #ffc1bd;
+}
 .scene-shell canvas {
   display: block;
   width: 100%;
@@ -411,6 +454,17 @@ select {
 .scene-empty small {
   color: var(--muted);
 }
+.scene-renderer-fallback {
+  inset: auto 1rem 1rem;
+  display: none;
+  padding: 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: rgba(8, 16, 25, 0.92);
+}
+.scene-shell[data-renderer="unavailable"] .scene-renderer-fallback {
+  display: grid;
+}
 .scene-help {
   margin: 0;
   padding: 10px 20px;
@@ -423,6 +477,19 @@ select {
 
 .metrics-panel {
   min-width: 0;
+}
+.discovery-strip {
+  margin: 16px 22px 0;
+  padding: 10px 12px;
+  border: 1px solid rgba(85, 214, 190, 0.22);
+  border-radius: 10px;
+  color: var(--mint);
+  background: rgba(85, 214, 190, 0.055);
+  font:
+    0.68rem/1.4 ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    monospace;
 }
 .progress-label {
   display: grid;
@@ -476,6 +543,7 @@ progress::-moz-progress-bar {
   font-size: 0.72rem;
 }
 .metric-cards strong {
+  overflow-wrap: anywhere;
   font:
     500 1.2rem "DM Mono",
     monospace;
@@ -489,6 +557,11 @@ progress::-moz-progress-bar {
   justify-content: space-between;
   color: var(--muted);
   font-size: 0.74rem;
+}
+.fitness-chart figcaption > span,
+.archive-map figcaption > span {
+  color: var(--muted);
+  font-size: 0.64rem;
 }
 .chart-legend {
   display: flex;
@@ -530,12 +603,137 @@ progress::-moz-progress-bar {
   stroke: var(--mint);
   opacity: 0.78;
 }
+.archive-map {
+  margin: 0;
+  padding: 0 22px 22px;
+}
+.archive-map figcaption {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 10px;
+  color: var(--muted);
+  font-size: 0.74rem;
+}
+.archive-grid {
+  display: grid;
+  gap: 3px;
+  width: 100%;
+  aspect-ratio: 2 / 1;
+  padding: 5px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #09151b;
+}
+.archive-cell {
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 3px;
+  background: rgba(152, 191, 188, 0.055);
+}
+.archive-cell.occupied {
+  background: color-mix(
+    in srgb,
+    var(--gold) calc(30% + var(--fitness) * 70%),
+    var(--mint)
+  );
+  box-shadow: 0 0 10px rgba(85, 214, 190, 0.18);
+}
+.archive-cell.occupied:hover {
+  border: 0;
+  background: color-mix(
+    in srgb,
+    #ffe2a6 calc(38% + var(--fitness) * 62%),
+    #80ebd7
+  );
+  transform: scale(1.08);
+}
+.archive-cell.occupied:focus-visible {
+  position: relative;
+  z-index: 1;
+  box-shadow:
+    0 0 0 2px #071016,
+    0 0 0 4px var(--gold);
+}
+.archive-cell.occupied.selected {
+  box-shadow:
+    inset 0 0 0 2px #fff4d8,
+    0 0 15px rgba(255, 200, 87, 0.52);
+}
 
 .inspection-grid {
   display: grid;
   grid-template-columns: 0.85fr 1.2fr 1fr;
   gap: 18px;
   margin-top: 18px;
+}
+.generalization-panel {
+  margin-top: 18px;
+}
+.generalization-status {
+  display: grid;
+  gap: 0.3rem;
+  margin: 18px 22px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #0b181f;
+}
+.generalization-status span {
+  color: var(--ink);
+  font-size: 0.78rem;
+}
+.generalization-status small,
+.generalization-subject {
+  color: var(--muted);
+  font:
+    0.66rem/1.5 "DM Mono",
+    monospace;
+}
+.generalization-status.loading {
+  border-color: rgba(85, 214, 190, 0.35);
+}
+.generalization-status.ready {
+  border-color: rgba(255, 200, 87, 0.32);
+}
+.generalization-status.error span {
+  color: #ffc1bd;
+}
+.generalization-summary {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1px;
+  margin: 0 22px 18px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--line);
+}
+.generalization-summary > div {
+  display: grid;
+  gap: 0.35rem;
+  padding: 14px;
+  background: #0b181f;
+}
+.generalization-summary span {
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+.generalization-summary strong {
+  color: var(--gold);
+  font:
+    500 1rem "DM Mono",
+    monospace;
+}
+.generalization-table {
+  margin: 0 22px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+.generalization-subject {
+  margin: 10px 22px 18px;
 }
 .inspection {
   min-width: 0;
@@ -576,6 +774,28 @@ progress::-moz-progress-bar {
 }
 .component-list dd.penalty {
   color: #f0a59f;
+}
+.descriptor-row {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1px;
+  margin: 0 22px 18px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--line);
+}
+.descriptor-row span {
+  display: grid;
+  gap: 0.3rem;
+  padding: 11px;
+  color: var(--muted);
+  background: #0b181f;
+  font-size: 0.7rem;
+}
+.descriptor-row strong {
+  color: var(--mint);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 .aggregate {
   display: flex;
@@ -706,6 +926,9 @@ footer {
   .inspection-grid {
     grid-template-columns: repeat(2, 1fr);
   }
+  .generalization-summary {
+    grid-template-columns: repeat(2, 1fr);
+  }
   .lineage-panel {
     grid-column: 1 / -1;
   }
@@ -766,6 +989,14 @@ footer {
   .panel-heading {
     padding: 17px;
   }
+  .specimen-ribbon {
+    grid-template-columns: 1fr auto;
+    padding-left: 17px;
+  }
+  .inspection-state {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
   .scene-shell {
     height: 390px;
     min-height: 0;
@@ -779,6 +1010,12 @@ footer {
   }
   .inspection-grid {
     grid-template-columns: 1fr;
+  }
+  .generalization-status,
+  .generalization-summary,
+  .generalization-table,
+  .generalization-subject {
+    margin-inline: 17px;
   }
   .lineage-panel {
     grid-column: auto;

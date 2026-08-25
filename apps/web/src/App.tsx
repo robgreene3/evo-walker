@@ -1,21 +1,32 @@
 import {
-  DEFAULT_GA_CONFIG,
-  MAX_EXPERIMENT_BYTES,
+  DEFAULT_QUALITY_DIVERSITY_CONFIG,
+  EPISODE_DURATION_OPTIONS,
+  TERRAIN_GENERATOR_VERSION,
+  TERRAIN_KINDS,
+  MAX_QUALITY_DIVERSITY_EXPERIMENT_BYTES,
   PRNG_IDENTITY,
-  createExperimentDocument,
-  parseExperimentJson,
-  serializeExperimentDocument,
-  type ControllerEvolutionSnapshot,
-  type ControllerLineageRecord,
+  createQualityDiversityExperimentDocument,
+  parseQualityDiversityExperimentJson,
+  serializeQualityDiversityExperimentDocument,
+  type QualityDiversityArchiveEntry,
+  type QualityDiversityLineageRecord,
+  type QualityDiversitySnapshot,
+  type EpisodeDurationSeconds,
+  type TerrainConfig,
+  type TerrainKind,
 } from "@evowalker/core";
 import type { EpisodeResult, FitnessComponents } from "@evowalker/sim";
 import {
   WORKER_PROTOCOL_VERSION,
-  type StartEvolutionRequest,
+  type GeneralizationCompletedMessage,
+  type GeneralizationRequest,
+  type ReplayEpisodeRequest,
+  type StartExplorationRequest,
   type WorkerResponse,
 } from "@evowalker/worker/protocol";
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { ArchiveMap } from "./ArchiveMap.js";
 import { ChampionScene } from "./ChampionScene.js";
 import { FitnessChart } from "./FitnessChart.js";
 
@@ -26,63 +37,89 @@ type ExperimentStatus =
   | "pausing"
   | "paused"
   | "resuming"
-  | "completed"
+  | "stopping"
+  | "stopped"
   | "loaded"
-  | "cancelling"
-  | "cancelled"
   | "error";
 
 interface EditableConfig {
   readonly seed: number;
-  readonly populationSize: number;
-  readonly generations: number;
+  readonly initialPopulation: number;
+  readonly archiveBins: number;
+  readonly episodeDurationSeconds: EpisodeDurationSeconds;
+  readonly terrainKind: TerrainKind;
+  readonly terrainSeed: number;
 }
 
 const INITIAL_CONFIG: EditableConfig = {
   seed: 42,
-  populationSize: DEFAULT_GA_CONFIG.populationSize,
-  generations: DEFAULT_GA_CONFIG.generations,
+  initialPopulation: DEFAULT_QUALITY_DIVERSITY_CONFIG.initialPopulation,
+  archiveBins: DEFAULT_QUALITY_DIVERSITY_CONFIG.archiveBins,
+  episodeDurationSeconds:
+    DEFAULT_QUALITY_DIVERSITY_CONFIG.episodeDurationSeconds,
+  terrainKind: "flat",
+  terrainSeed: 42,
 };
-const LOCAL_STORAGE_KEY = "evowalker:experiment:v1";
+const LOCAL_STORAGE_KEY = "evowalker:experiment:v4";
+const LEGACY_LOCAL_STORAGE_KEYS = [
+  "evowalker:experiment:v3",
+  "evowalker:experiment:v2",
+] as const;
+
+const STATUS_TEXT: Readonly<Record<ExperimentStatus, string>> = {
+  initial: "Ready to cultivate a deterministic gait archive.",
+  loading: "Building the founder population in the physics worker…",
+  running:
+    "Exploration continues off the main thread until you pause or stop it.",
+  pausing: "Pausing at the next complete creature evaluation…",
+  paused: "Paused on a deterministic checkpoint boundary.",
+  resuming: "Restoring the exact PRNG and archive state…",
+  stopping: "Stopping after the current creature evaluation…",
+  stopped: "Exploration stopped with a recoverable checkpoint retained.",
+  loaded: "Validated archive loaded. Continue it or begin a new experiment.",
+  error: "Exploration stopped because the worker reported an error.",
+};
+
+const JOINT_NAMES = [
+  "Front-left hip",
+  "Front-right hip",
+  "Rear-left hip",
+  "Rear-right hip",
+  "Front-left knee",
+  "Front-right knee",
+  "Rear-left knee",
+  "Rear-right knee",
+] as const;
 
 function localSaveExists(): boolean {
   try {
-    return localStorage.getItem(LOCAL_STORAGE_KEY) !== null;
+    return (
+      localStorage.getItem(LOCAL_STORAGE_KEY) !== null ||
+      LEGACY_LOCAL_STORAGE_KEYS.some(
+        (key) => localStorage.getItem(key) !== null,
+      )
+    );
   } catch {
     return false;
   }
 }
 
-const STATUS_TEXT: Readonly<Record<ExperimentStatus, string>> = {
-  initial: "Ready for a deterministic experiment.",
-  loading: "Loading the physics worker…",
-  running: "Evolution is running off the main thread.",
-  pausing: "Pausing at the next generation boundary…",
-  paused: "Paused at a complete generation boundary.",
-  resuming: "Resuming evolution…",
-  completed: "Experiment complete. Champion ready for inspection.",
-  loaded: "Saved experiment loaded for inspection or a deterministic restart.",
-  cancelling: "Cancelling at the next generation boundary…",
-  cancelled:
-    "Experiment cancelled with the latest complete generation retained.",
-  error: "Experiment stopped because the worker reported an error.",
-};
-
-function formatNumber(value: number | undefined, digits = 3): string {
-  return value === undefined || !Number.isFinite(value)
+function formatNumber(value: number | null | undefined, digits = 3): string {
+  return value === null || value === undefined || !Number.isFinite(value)
     ? "—"
     : value.toFixed(digits);
 }
 
 function ancestry(
-  snapshot: ControllerEvolutionSnapshot | null,
-): readonly ControllerLineageRecord[] {
-  if (snapshot === null) return [];
+  snapshot: QualityDiversitySnapshot | null,
+  lineageId: string | null,
+): readonly QualityDiversityLineageRecord[] {
+  if (snapshot === null || lineageId === null) return [];
   const records = new Map(
     snapshot.lineage.map((record) => [record.id, record]),
   );
-  const pending = [snapshot.champion.lineageId];
-  const result: ControllerLineageRecord[] = [];
+  const pending = [lineageId];
+  const result: QualityDiversityLineageRecord[] = [];
   const visited = new Set<string>();
   while (pending.length > 0 && result.length < 18) {
     const id = pending.shift();
@@ -125,10 +162,30 @@ function FitnessComponentsPanel({
 export function App() {
   const [config, setConfig] = useState<EditableConfig>(INITIAL_CONFIG);
   const [status, setStatus] = useState<ExperimentStatus>("initial");
-  const [snapshot, setSnapshot] = useState<ControllerEvolutionSnapshot | null>(
+  const [snapshot, setSnapshot] = useState<QualityDiversitySnapshot | null>(
     null,
   );
   const [episode, setEpisode] = useState<EpisodeResult | null>(null);
+  const [selectedEntry, setSelectedEntry] =
+    useState<QualityDiversityArchiveEntry | null>(null);
+  const [inspectionEpisode, setInspectionEpisode] =
+    useState<EpisodeResult | null>(null);
+  const [inspectionState, setInspectionState] = useState<
+    "idle" | "loading" | "ready" | "error"
+  >("idle");
+  const [inspectionError, setInspectionError] = useState<string | null>(null);
+  const [generalization, setGeneralization] =
+    useState<GeneralizationCompletedMessage | null>(null);
+  const [generalizationState, setGeneralizationState] = useState<
+    "idle" | "loading" | "ready" | "error"
+  >("idle");
+  const [generalizationMessage, setGeneralizationMessage] = useState(
+    "Test one controller unchanged across every proving ground.",
+  );
+  const [generalizationSubject, setGeneralizationSubject] = useState<{
+    readonly lineageId: string;
+    readonly evaluation: number;
+  } | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [playbackSpeed, setPlaybackSpeed] = useState(1);
   const [replayToken, setReplayToken] = useState(0);
@@ -136,54 +193,183 @@ export function App() {
   const [persistenceMessage, setPersistenceMessage] = useState<string | null>(
     null,
   );
+  const [discoveryMessage, setDiscoveryMessage] = useState("Awaiting founders");
   const workerRef = useRef<Worker | null>(null);
+  const inspectionWorkerRef = useRef<Worker | null>(null);
+  const generalizationWorkerRef = useRef<Worker | null>(null);
   const requestIdRef = useRef<string | null>(null);
   const requestSequence = useRef(0);
+  const inspectionSequence = useRef(0);
+  const generalizationSequence = useRef(0);
   const statusRef = useRef<ExperimentStatus>("initial");
+  const episodeRef = useRef<EpisodeResult | null>(null);
+  const archiveSizeRef = useRef(0);
+  const editableTerrain: TerrainConfig = {
+    kind: config.terrainKind,
+    seed: config.terrainSeed,
+    generatorVersion: TERRAIN_GENERATOR_VERSION,
+  };
+  const experimentTerrain = snapshot?.config.terrain ?? editableTerrain;
+  const experimentDurationSeconds =
+    snapshot?.config.episodeDurationSeconds ?? config.episodeDurationSeconds;
 
   const transition = useCallback((next: ExperimentStatus) => {
     statusRef.current = next;
     setStatus(next);
   }, []);
 
+  const assignEpisode = useCallback((next: EpisodeResult | null) => {
+    episodeRef.current = next;
+    setEpisode(next);
+  }, []);
+
+  const clearGeneralization = useCallback(() => {
+    generalizationWorkerRef.current?.terminate();
+    generalizationWorkerRef.current = null;
+    setGeneralization(null);
+    setGeneralizationState("idle");
+    setGeneralizationMessage(
+      "Test one controller unchanged across every proving ground.",
+    );
+    setGeneralizationSubject(null);
+  }, []);
+
+  const clearInspection = useCallback(() => {
+    inspectionWorkerRef.current?.terminate();
+    inspectionWorkerRef.current = null;
+    setSelectedEntry(null);
+    setInspectionEpisode(null);
+    setInspectionState("idle");
+    setInspectionError(null);
+    setReplayToken((token) => token + 1);
+    clearGeneralization();
+  }, [clearGeneralization]);
+
+  const inspectEntry = useCallback(
+    (entry: QualityDiversityArchiveEntry) => {
+      clearGeneralization();
+      inspectionWorkerRef.current?.terminate();
+      const worker = new Worker(
+        new URL(
+          "../../../packages/worker/src/browser-worker.ts",
+          import.meta.url,
+        ),
+        { type: "module", name: "evowalker-gait-inspection" },
+      );
+      const requestId = `gait-${entry.lineageId}-${String(++inspectionSequence.current)}`;
+      setSelectedEntry(entry);
+      setInspectionEpisode(null);
+      setInspectionState("loading");
+      setInspectionError(null);
+      worker.addEventListener(
+        "message",
+        ({ data }: MessageEvent<WorkerResponse>) => {
+          if (data.requestId !== requestId) return;
+          if (data.kind === "error") {
+            setInspectionState("error");
+            setInspectionError(data.message);
+            return;
+          }
+          if (data.kind !== "replay-completed") return;
+          const fitnessMatches =
+            Math.abs(data.episode.aggregateFitness - entry.fitness) <= 1e-9;
+          const behaviorMatches =
+            Math.abs(
+              data.episode.gait.dutyFactor - entry.behavior.dutyFactor,
+            ) <= 1e-9 &&
+            Math.abs(
+              data.episode.gait.diagonalCoordination -
+                entry.behavior.diagonalCoordination,
+            ) <= 1e-9;
+          if (!fitnessMatches || !behaviorMatches || !data.episode.viable) {
+            setInspectionState("error");
+            setInspectionError(
+              "This specimen did not reproduce its archived score and was not displayed.",
+            );
+            return;
+          }
+          setInspectionEpisode(data.episode);
+          setInspectionState("ready");
+          setReplayToken((token) => token + 1);
+        },
+      );
+      worker.addEventListener("error", (event) => {
+        setInspectionState("error");
+        setInspectionError(
+          event.message || "The gait inspection worker failed.",
+        );
+      });
+      inspectionWorkerRef.current = worker;
+      const request: ReplayEpisodeRequest = {
+        kind: "replay",
+        protocolVersion: WORKER_PROTOCOL_VERSION,
+        requestId,
+        genome: entry.genome,
+        terrain: experimentTerrain,
+        episodeDurationSeconds: experimentDurationSeconds,
+      };
+      worker.postMessage(request);
+    },
+    [clearGeneralization, experimentDurationSeconds, experimentTerrain],
+  );
+
   const receive = useCallback(
     ({ data }: MessageEvent<WorkerResponse>) => {
       if (data.requestId !== requestIdRef.current) return;
       switch (data.kind) {
-        case "evolution-progress":
+        case "exploration-progress": {
+          const previousSize = archiveSizeRef.current;
+          archiveSizeRef.current = data.snapshot.archive.length;
           setSnapshot(data.snapshot);
-          setEpisode(data.championEpisode);
+          if (
+            data.championEpisode !== null &&
+            (data.championChanged || episodeRef.current === null)
+          ) {
+            assignEpisode(data.championEpisode);
+          }
+          if (data.snapshot.archive.length > previousSize) {
+            setDiscoveryMessage(
+              `New gait niche discovered at evaluation ${String(data.snapshot.evaluations)}`,
+            );
+          } else if (data.championChanged) {
+            setDiscoveryMessage(
+              `New champion at evaluation ${String(data.snapshot.evaluations)}`,
+            );
+          }
           if (["loading", "resuming"].includes(statusRef.current)) {
             transition("running");
           }
           break;
-        case "evolution-paused":
+        }
+        case "exploration-paused":
           transition("paused");
           break;
-        case "evolution-resumed":
+        case "exploration-resumed":
           transition("running");
           break;
-        case "evolution-completed":
+        case "exploration-stopped":
           setSnapshot(data.snapshot);
-          setEpisode(data.championEpisode);
-          transition("completed");
-          break;
-        case "evolution-cancelled":
-          setSnapshot(data.snapshot);
-          setEpisode(data.championEpisode);
-          transition("cancelled");
+          if (data.championEpisode !== null)
+            assignEpisode(data.championEpisode);
+          transition("stopped");
           break;
         case "error":
           setErrorMessage(data.message);
           transition("error");
           break;
+        case "evolution-progress":
+        case "evolution-paused":
+        case "evolution-resumed":
+        case "evolution-completed":
+        case "evolution-cancelled":
         case "progress":
         case "completed":
         case "cancelled":
+        case "replay-completed":
           break;
       }
     },
-    [transition],
+    [assignEpisode, transition],
   );
 
   const createWorker = useCallback(() => {
@@ -193,7 +379,7 @@ export function App() {
         "../../../packages/worker/src/browser-worker.ts",
         import.meta.url,
       ),
-      { type: "module", name: "evowalker-evolution" },
+      { type: "module", name: "evowalker-exploration" },
     );
     worker.addEventListener("message", receive);
     worker.addEventListener("error", (event) => {
@@ -209,36 +395,46 @@ export function App() {
     return () => {
       workerRef.current?.terminate();
       workerRef.current = null;
+      inspectionWorkerRef.current?.terminate();
+      inspectionWorkerRef.current = null;
+      generalizationWorkerRef.current?.terminate();
+      generalizationWorkerRef.current = null;
     };
   }, [createWorker]);
 
-  const start = () => {
+  const start = (checkpoint?: QualityDiversitySnapshot) => {
+    clearInspection();
     const worker = createWorker();
-    const requestId = `evolution-${String(++requestSequence.current)}`;
+    const requestId = `exploration-${String(++requestSequence.current)}`;
     requestIdRef.current = requestId;
-    setSnapshot(null);
-    setEpisode(null);
+    if (checkpoint === undefined) {
+      setSnapshot(null);
+      archiveSizeRef.current = 0;
+      assignEpisode(null);
+      setDiscoveryMessage("Evaluating founder population");
+    } else {
+      setDiscoveryMessage(
+        `Continuing from evaluation ${String(checkpoint.evaluations)}`,
+      );
+    }
     setErrorMessage(null);
-    transition("loading");
-    const request: StartEvolutionRequest = {
-      kind: "evolve",
+    setPersistenceMessage(null);
+    transition(checkpoint === undefined ? "loading" : "resuming");
+    const base: StartExplorationRequest = {
+      kind: "explore",
       protocolVersion: WORKER_PROTOCOL_VERSION,
       requestId,
       config: {
         seed: config.seed,
-        ...DEFAULT_GA_CONFIG,
-        populationSize: config.populationSize,
-        generations: config.generations,
-        eliteCount: Math.min(
-          DEFAULT_GA_CONFIG.eliteCount,
-          config.populationSize - 1,
-        ),
-        tournamentSize: Math.min(
-          DEFAULT_GA_CONFIG.tournamentSize,
-          config.populationSize,
-        ),
+        ...DEFAULT_QUALITY_DIVERSITY_CONFIG,
+        initialPopulation: config.initialPopulation,
+        archiveBins: config.archiveBins,
+        terrain: editableTerrain,
+        episodeDurationSeconds: config.episodeDurationSeconds,
       },
     };
+    const request: StartExplorationRequest =
+      checkpoint === undefined ? base : { ...base, checkpoint };
     worker.postMessage(request);
   };
 
@@ -252,52 +448,46 @@ export function App() {
     });
   };
 
-  const pause = () => {
-    transition("pausing");
-    postControl("pause");
-  };
-  const resume = () => {
-    transition("resuming");
-    postControl("resume");
-  };
-  const cancel = () => {
-    transition("cancelling");
-    postControl("cancel");
-  };
-
   const restoreDocument = (
-    document: ReturnType<typeof parseExperimentJson>,
+    document: ReturnType<typeof parseQualityDiversityExperimentJson>,
   ) => {
+    clearInspection();
+    workerRef.current?.terminate();
     requestIdRef.current = null;
     setConfig({
       seed: document.snapshot.config.seed,
-      populationSize: document.snapshot.config.populationSize,
-      generations: document.snapshot.config.generations,
+      initialPopulation: document.snapshot.config.initialPopulation,
+      archiveBins: document.snapshot.config.archiveBins,
+      episodeDurationSeconds: document.snapshot.config.episodeDurationSeconds,
+      terrainKind: document.snapshot.config.terrain.kind,
+      terrainSeed: document.snapshot.config.terrain.seed,
     });
     setSnapshot(document.snapshot);
-    setEpisode(document.championEpisode);
+    archiveSizeRef.current = document.snapshot.archive.length;
+    assignEpisode(document.championEpisode);
     setErrorMessage(null);
+    setDiscoveryMessage("Validated deterministic checkpoint");
     setPersistenceMessage(
-      `Restored schema v${String(document.schemaVersion)} at generation ${String(document.snapshot.generation)}.`,
+      `Restored schema v${String(document.schemaVersion)} at evaluation ${String(document.snapshot.evaluations)}.`,
     );
-    transition(document.snapshot.complete ? "completed" : "loaded");
+    transition("loaded");
   };
 
   const currentDocument = () => {
-    if (snapshot === null || episode === null) {
+    if (snapshot === null) {
       throw new Error("Run or load an experiment before saving it.");
     }
-    return createExperimentDocument(snapshot, episode);
+    return createQualityDiversityExperimentDocument(snapshot, episode);
   };
 
   const saveLocal = () => {
     try {
       localStorage.setItem(
         LOCAL_STORAGE_KEY,
-        serializeExperimentDocument(currentDocument()),
+        serializeQualityDiversityExperimentDocument(currentDocument()),
       );
       setHasLocalSave(true);
-      setPersistenceMessage("Saved locally in this browser.");
+      setPersistenceMessage("Checkpoint saved locally in this browser.");
     } catch (error) {
       setPersistenceMessage(
         error instanceof Error ? error.message : "The local save failed.",
@@ -307,10 +497,15 @@ export function App() {
 
   const loadLocal = () => {
     try {
-      const serialized = localStorage.getItem(LOCAL_STORAGE_KEY);
+      const serialized =
+        localStorage.getItem(LOCAL_STORAGE_KEY) ??
+        LEGACY_LOCAL_STORAGE_KEYS.map((key) => localStorage.getItem(key)).find(
+          (value) => value !== null,
+        ) ??
+        null;
       if (serialized === null)
-        throw new Error("No local EvoWalker save was found.");
-      restoreDocument(parseExperimentJson(serialized));
+        throw new Error("No EvoWalker checkpoint was found.");
+      restoreDocument(parseQualityDiversityExperimentJson(serialized));
     } catch (error) {
       setErrorMessage(
         error instanceof Error
@@ -323,16 +518,17 @@ export function App() {
 
   const exportJson = () => {
     try {
-      const serialized = serializeExperimentDocument(currentDocument());
+      const serialized =
+        serializeQualityDiversityExperimentDocument(currentDocument());
       const url = URL.createObjectURL(
         new Blob([serialized], { type: "application/json" }),
       );
       const link = document.createElement("a");
       link.href = url;
-      link.download = `evowalker-seed-${String(config.seed)}-generation-${String(snapshot?.generation ?? 0)}.json`;
+      link.download = `evowalker-seed-${String(config.seed)}-evaluation-${String(snapshot?.evaluations ?? 0)}.json`;
       link.click();
       URL.revokeObjectURL(url);
-      setPersistenceMessage("Exported a validated JSON experiment.");
+      setPersistenceMessage("Exported a validated version-4 checkpoint.");
     } catch (error) {
       setPersistenceMessage(
         error instanceof Error ? error.message : "The JSON export failed.",
@@ -343,44 +539,121 @@ export function App() {
   const importJson = async (file: File | null): Promise<void> => {
     if (file === null) return;
     try {
-      if (file.size > MAX_EXPERIMENT_BYTES) {
+      if (file.size > MAX_QUALITY_DIVERSITY_EXPERIMENT_BYTES) {
         throw new Error(
-          `Experiment exceeds the ${String(MAX_EXPERIMENT_BYTES)} byte limit.`,
+          `Experiment exceeds the ${String(MAX_QUALITY_DIVERSITY_EXPERIMENT_BYTES)} byte limit.`,
         );
       }
-      restoreDocument(parseExperimentJson(await file.text()));
+      restoreDocument(parseQualityDiversityExperimentJson(await file.text()));
     } catch (error) {
       setErrorMessage(
         error instanceof Error ? error.message : "The JSON import failed.",
       );
       setPersistenceMessage(
-        "The current experiment was kept. Choose a valid version-1 EvoWalker JSON file or restart.",
+        "The current experiment was kept. Choose a valid EvoWalker schema-v2, schema-v3, or schema-v4 JSON file.",
       );
       transition("error");
     }
   };
 
-  const active = [
+  const activeWorker = [
     "loading",
     "running",
     "pausing",
     "paused",
     "resuming",
-    "cancelling",
+    "stopping",
   ].includes(status);
-  const replaceable = ![
+  const stateReplacementSafe = ![
     "loading",
     "running",
     "pausing",
     "resuming",
-    "cancelling",
+    "stopping",
+    "paused",
   ].includes(status);
-  const summary = snapshot?.history.at(-1);
-  const lineage = ancestry(snapshot);
-  const generation = snapshot?.generation ?? 0;
+  const checkpointSafe =
+    snapshot !== null && ["paused", "stopped", "loaded"].includes(status);
+  const coverage = snapshot?.history.at(-1)?.archiveCoverage ?? 0;
+  const champion = snapshot?.champion ?? null;
+  const displayEpisode = selectedEntry === null ? episode : inspectionEpisode;
+  const displayedEntry = selectedEntry ?? champion;
+  const lineage = ancestry(snapshot, displayedEntry?.lineageId ?? null);
+  const worstForwardProgress =
+    generalization === null
+      ? null
+      : Math.min(
+          ...generalization.courses.map((course) => course.forwardProgress),
+        );
+
+  const testAcrossCourses = () => {
+    if (displayedEntry === null) return;
+    generalizationWorkerRef.current?.terminate();
+    const worker = new Worker(
+      new URL(
+        "../../../packages/worker/src/browser-worker.ts",
+        import.meta.url,
+      ),
+      { type: "module", name: "evowalker-generalization" },
+    );
+    const requestId = `generalization-${displayedEntry.lineageId}-${String(++generalizationSequence.current)}`;
+    setGeneralization(null);
+    setGeneralizationState("loading");
+    setGeneralizationMessage(
+      `Running four ${String(experimentDurationSeconds)}-second trials off the main thread…`,
+    );
+    setGeneralizationSubject({
+      lineageId: displayedEntry.lineageId,
+      evaluation: displayedEntry.evaluation,
+    });
+    worker.addEventListener(
+      "message",
+      ({ data }: MessageEvent<WorkerResponse>) => {
+        if (data.requestId !== requestId) return;
+        if (data.kind === "error") {
+          setGeneralizationState("error");
+          setGeneralizationMessage(data.message);
+          worker.terminate();
+          generalizationWorkerRef.current = null;
+          return;
+        }
+        if (data.kind !== "generalization-completed") return;
+        setGeneralization(data);
+        setGeneralizationState("ready");
+        setGeneralizationMessage(
+          `Completed four deterministic trials for the gait born at evaluation ${String(displayedEntry.evaluation)}.`,
+        );
+        worker.terminate();
+        generalizationWorkerRef.current = null;
+      },
+    );
+    worker.addEventListener("error", (event) => {
+      setGeneralizationState("error");
+      setGeneralizationMessage(
+        event.message || "The cross-course worker failed.",
+      );
+      worker.terminate();
+      generalizationWorkerRef.current = null;
+    });
+    generalizationWorkerRef.current = worker;
+    const request: GeneralizationRequest = {
+      kind: "generalize",
+      protocolVersion: WORKER_PROTOCOL_VERSION,
+      requestId,
+      genome: displayedEntry.genome,
+      terrainSeed: experimentTerrain.seed,
+      episodeDurationSeconds: experimentDurationSeconds,
+    };
+    worker.postMessage(request);
+  };
 
   return (
-    <div className="app-frame" data-status={status}>
+    <div
+      className="app-frame"
+      data-status={status}
+      data-terrain={experimentTerrain.kind}
+      data-episode-seconds={experimentDurationSeconds}
+    >
       <header className="masthead">
         <a className="brand" href="#main-content" aria-label="EvoWalker home">
           <span className="brand-mark" aria-hidden="true">
@@ -388,7 +661,7 @@ export function App() {
           </span>
           <span>
             <strong>EvoWalker</strong>
-            <small>Controller laboratory</small>
+            <small>Gait ecology</small>
           </span>
         </a>
         <div className="provenance">
@@ -401,12 +674,12 @@ export function App() {
       <main id="main-content">
         <section className="hero" aria-labelledby="experiment-heading">
           <div>
-            <p className="eyebrow">Deterministic evolutionary locomotion</p>
-            <h1 id="experiment-heading">Shape a gait, not a creature.</h1>
+            <p className="eyebrow">Continuous quality-diversity evolution</p>
+            <h1 id="experiment-heading">Cultivate a gait ecology.</h1>
             <p className="hero-copy">
-              Evolve sixteen periodic controller genes against one fixed
-              articulated biped. Every score, parent, and replay stays
-              inspectable.
+              Eight powered joints explore a living archive of stable
+              locomotion. Fallen runners are rejected; every viable champion,
+              niche, and parent remains inspectable and reproducible.
             </p>
           </div>
           <div
@@ -418,7 +691,7 @@ export function App() {
               <input
                 type="number"
                 value={config.seed}
-                disabled={active}
+                disabled={activeWorker}
                 onChange={(event) => {
                   setConfig({
                     ...config,
@@ -428,33 +701,95 @@ export function App() {
               />
             </label>
             <label>
-              Population
+              Founders
               <input
                 type="number"
                 min="4"
-                max="64"
-                value={config.populationSize}
-                disabled={active}
+                max="256"
+                value={config.initialPopulation}
+                disabled={activeWorker}
                 onChange={(event) => {
                   setConfig({
                     ...config,
-                    populationSize: event.currentTarget.valueAsNumber,
+                    initialPopulation: event.currentTarget.valueAsNumber,
                   });
                 }}
               />
             </label>
             <label>
-              Generations
+              Archive grid
               <input
                 type="number"
-                min="1"
-                max="100"
-                value={config.generations}
-                disabled={active}
+                min="4"
+                max="16"
+                value={config.archiveBins}
+                disabled={activeWorker}
                 onChange={(event) => {
                   setConfig({
                     ...config,
-                    generations: event.currentTarget.valueAsNumber,
+                    archiveBins: event.currentTarget.valueAsNumber,
+                  });
+                }}
+              />
+            </label>
+            <label>
+              Episode
+              <select
+                value={config.episodeDurationSeconds}
+                disabled={activeWorker}
+                onChange={(event) => {
+                  setConfig({
+                    ...config,
+                    episodeDurationSeconds: Number(
+                      event.currentTarget.value,
+                    ) as EpisodeDurationSeconds,
+                  });
+                }}
+              >
+                {EPISODE_DURATION_OPTIONS.map((duration) => (
+                  <option key={duration} value={duration}>
+                    {duration === 6
+                      ? "6 seconds · quick"
+                      : "30 seconds · endurance"}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Terrain
+              <select
+                value={config.terrainKind}
+                disabled={activeWorker}
+                onChange={(event) => {
+                  setConfig({
+                    ...config,
+                    terrainKind: event.currentTarget.value as TerrainKind,
+                  });
+                }}
+              >
+                {TERRAIN_KINDS.map((kind) => (
+                  <option key={kind} value={kind}>
+                    {kind === "flat"
+                      ? "Flat ground"
+                      : kind === "gentle-ramp"
+                        ? "Gentle rise"
+                        : kind === "curb-trail"
+                          ? "Curb trail"
+                          : "Uneven trail"}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Course seed
+              <input
+                type="number"
+                value={config.terrainSeed}
+                disabled={activeWorker}
+                onChange={(event) => {
+                  setConfig({
+                    ...config,
+                    terrainSeed: event.currentTarget.valueAsNumber,
                   });
                 }}
               />
@@ -477,31 +812,51 @@ export function App() {
             <button
               className="primary"
               type="button"
-              onClick={start}
-              disabled={active}
+              onClick={() => {
+                start();
+              }}
+              disabled={activeWorker}
             >
-              {snapshot === null ? "Start experiment" : "Restart"}
+              {snapshot === null ? "Begin evolution" : "Start fresh"}
             </button>
             <button
               type="button"
-              onClick={pause}
+              onClick={() => {
+                if (snapshot !== null) start(snapshot);
+              }}
+              disabled={activeWorker || snapshot === null}
+            >
+              Continue
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                transition("pausing");
+                postControl("pause");
+              }}
               disabled={status !== "running"}
             >
               Pause
             </button>
             <button
               type="button"
-              onClick={resume}
+              onClick={() => {
+                transition("resuming");
+                postControl("resume");
+              }}
               disabled={status !== "paused"}
             >
               Resume
             </button>
             <button
               type="button"
-              onClick={cancel}
-              disabled={!active || status === "cancelling"}
+              onClick={() => {
+                transition("stopping");
+                postControl("cancel");
+              }}
+              disabled={!activeWorker || status === "stopping"}
             >
-              Cancel
+              Stop
             </button>
           </div>
         </section>
@@ -510,8 +865,13 @@ export function App() {
           <div className="error-banner" role="alert">
             <strong>Experiment error</strong>
             <span>{errorMessage}</span>
-            <button type="button" onClick={start}>
-              Start a fresh experiment
+            <button
+              type="button"
+              onClick={() => {
+                start();
+              }}
+            >
+              Start fresh
             </button>
           </div>
         )}
@@ -521,42 +881,42 @@ export function App() {
           aria-label="Save and restore experiment"
         >
           <div>
-            <strong>Experiment file</strong>
+            <strong>Deterministic checkpoint</strong>
             <small role="status" aria-live="polite">
               {persistenceMessage ??
-                "Versioned JSON · validated before state replacement"}
+                "Schema v4 · duration, terrain, archive, and PRNG state · validated before replacement"}
             </small>
           </div>
           <div className="persistence-controls">
             <button
               type="button"
               onClick={saveLocal}
-              disabled={snapshot === null || !replaceable}
+              disabled={!checkpointSafe}
             >
               Save local
             </button>
             <button
               type="button"
               onClick={loadLocal}
-              disabled={!hasLocalSave || !replaceable}
+              disabled={!hasLocalSave || !stateReplacementSafe}
             >
               Load local
             </button>
             <button
               type="button"
               onClick={exportJson}
-              disabled={snapshot === null || !replaceable}
+              disabled={!checkpointSafe}
             >
               Export JSON
             </button>
             <label
-              className={`import-control${replaceable ? "" : " disabled"}`}
+              className={`import-control${stateReplacementSafe ? "" : " disabled"}`}
             >
               Import JSON
               <input
                 type="file"
                 accept="application/json,.json"
-                disabled={!replaceable}
+                disabled={!stateReplacementSafe}
                 onChange={(event) => {
                   void importJson(event.currentTarget.files?.[0] ?? null);
                   event.currentTarget.value = "";
@@ -569,12 +929,20 @@ export function App() {
         <div className="workspace-grid">
           <section
             className="viewer-panel panel"
-            aria-labelledby="champion-heading"
+            aria-labelledby="replay-heading"
           >
             <div className="panel-heading">
               <div>
-                <p className="eyebrow">Current best</p>
-                <h2 id="champion-heading">Champion replay</h2>
+                <p className="eyebrow">
+                  {selectedEntry === null
+                    ? "Viable current best"
+                    : "Gait atlas specimen"}
+                </p>
+                <h2 id="replay-heading">
+                  {selectedEntry === null
+                    ? "Uninterrupted champion replay"
+                    : `Niche ${String(selectedEntry.xIndex + 1)} × ${String(selectedEntry.yIndex + 1)}`}
+                </h2>
               </div>
               <div className="replay-controls">
                 <label>
@@ -592,7 +960,7 @@ export function App() {
                 </label>
                 <button
                   type="button"
-                  disabled={episode === null}
+                  disabled={displayEpisode === null}
                   onClick={() => {
                     setReplayToken((token) => token + 1);
                   }}
@@ -601,60 +969,203 @@ export function App() {
                 </button>
               </div>
             </div>
+            {selectedEntry === null ? null : (
+              <div className="specimen-ribbon" role="status">
+                <span>
+                  <strong>Archive specimen</strong>
+                  <small>
+                    evaluation {selectedEntry.evaluation} · fitness{" "}
+                    {formatNumber(selectedEntry.fitness)}
+                  </small>
+                </span>
+                <span className={`inspection-state ${inspectionState}`}>
+                  {inspectionState === "loading"
+                    ? "Reproducing…"
+                    : inspectionState === "ready"
+                      ? "Score reproduced"
+                      : inspectionState === "error"
+                        ? inspectionError
+                        : "Selected"}
+                </span>
+                <button type="button" onClick={clearInspection}>
+                  Follow live champion
+                </button>
+              </div>
+            )}
             <ChampionScene
-              episode={episode}
+              episode={displayEpisode}
+              terrain={experimentTerrain}
               playbackSpeed={playbackSpeed}
               replayToken={replayToken}
+              label={
+                selectedEntry === null
+                  ? "Champion replay"
+                  : "Selected gait specimen replay"
+              }
             />
             <p className="scene-help">
-              Drag to orbit · Scroll to zoom · Arrow keys rotate
+              Drag to orbit · Scroll to zoom · Arrow keys rotate ·{" "}
+              {selectedEntry === null
+                ? "new champions enter between loops"
+                : "evolution continues while this specimen loops"}
             </p>
           </section>
 
           <aside className="metrics-panel panel" aria-labelledby="run-heading">
             <div className="panel-heading">
               <div>
-                <p className="eyebrow">Live telemetry</p>
-                <h2 id="run-heading">Generation {generation}</h2>
+                <p className="eyebrow">Live ecology</p>
+                <h2 id="run-heading">
+                  {snapshot?.evaluations ?? 0} evaluations
+                </h2>
               </div>
               <span className="seed-chip">seed {config.seed}</span>
             </div>
-            <label className="progress-label">
-              <span>Evolution progress</span>
-              <strong>
-                {generation} / {config.generations}
-              </strong>
-              <progress value={generation} max={config.generations} />
-            </label>
+            <div className="discovery-strip" role="status" aria-live="polite">
+              {discoveryMessage}
+            </div>
             <div className="metric-cards">
               <div>
-                <span>Best</span>
-                <strong>{formatNumber(summary?.bestFitness)}</strong>
+                <span>Best viable</span>
+                <strong>{formatNumber(champion?.fitness)}</strong>
               </div>
               <div>
-                <span>Median</span>
-                <strong>{formatNumber(summary?.medianFitness)}</strong>
+                <span>Gait niches</span>
+                <strong>{snapshot?.archive.length ?? 0}</strong>
               </div>
               <div>
-                <span>Diversity</span>
-                <strong>{formatNumber(summary?.meanGenotypeDistance)}</strong>
+                <span>Coverage</span>
+                <strong>{formatNumber(coverage * 100, 1)}%</strong>
               </div>
               <div>
-                <span>Duplicates</span>
+                <span>Stability</span>
                 <strong>
-                  {formatNumber(
-                    summary === undefined
-                      ? undefined
-                      : summary.duplicateRate * 100,
-                    1,
-                  )}
-                  %
+                  {displayEpisode?.viable === true
+                    ? `full ${String(experimentDurationSeconds)}s`
+                    : "—"}
+                </strong>
+              </div>
+              <div>
+                <span>Terrain</span>
+                <strong>{displayEpisode?.terrain.label ?? "—"}</strong>
+              </div>
+              <div>
+                <span>Cleared</span>
+                <strong>
+                  {displayEpisode === null
+                    ? "—"
+                    : `${String(displayEpisode.terrain.obstaclesCleared)}/${String(displayEpisode.terrain.obstaclesTotal)}`}
                 </strong>
               </div>
             </div>
             <FitnessChart history={snapshot?.history ?? []} />
+            <ArchiveMap
+              snapshot={snapshot}
+              selectedLineageId={selectedEntry?.lineageId ?? null}
+              onSelect={inspectEntry}
+            />
           </aside>
         </div>
+
+        <section
+          className="generalization-panel panel"
+          aria-labelledby="generalization-heading"
+          data-state={generalizationState}
+        >
+          <div className="panel-heading">
+            <div>
+              <p className="eyebrow">Robustness laboratory</p>
+              <h2 id="generalization-heading">Four-course challenge</h2>
+            </div>
+            <button
+              type="button"
+              className="primary"
+              disabled={
+                displayedEntry === null || generalizationState === "loading"
+              }
+              onClick={testAcrossCourses}
+            >
+              {generalizationState === "loading"
+                ? "Testing…"
+                : "Test across courses"}
+            </button>
+          </div>
+          <div
+            className={`generalization-status ${generalizationState}`}
+            role="status"
+            aria-live="polite"
+          >
+            <span>{generalizationMessage}</span>
+            <small>
+              Diagnostic only · same genome, course seed, duration, physics, and
+              fitness · archive selection is unchanged
+            </small>
+          </div>
+          {generalization === null ? null : (
+            <>
+              <div
+                className="generalization-summary"
+                aria-label="Challenge summary"
+              >
+                <div>
+                  <span>Viable courses</span>
+                  <strong>
+                    {generalization.viableCourses}/
+                    {generalization.courses.length}
+                  </strong>
+                </div>
+                <div>
+                  <span>Worst fitness</span>
+                  <strong>
+                    {formatNumber(generalization.worstAggregateFitness, 5)}
+                  </strong>
+                </div>
+                <div>
+                  <span>Mean fitness</span>
+                  <strong>
+                    {formatNumber(generalization.meanAggregateFitness, 5)}
+                  </strong>
+                </div>
+                <div>
+                  <span>Worst progress</span>
+                  <strong>{formatNumber(worstForwardProgress, 4)} m</strong>
+                </div>
+              </div>
+              <div className="table-scroll generalization-table">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Course</th>
+                      <th>Viable</th>
+                      <th>Fitness</th>
+                      <th>Progress</th>
+                      <th>Cleared</th>
+                      <th>Checksum</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {generalization.courses.map((course) => (
+                      <tr key={course.terrain.kind}>
+                        <th>{course.label}</th>
+                        <td>{course.viable ? "Yes" : "No"}</td>
+                        <td>{formatNumber(course.aggregateFitness, 5)}</td>
+                        <td>{formatNumber(course.forwardProgress, 4)} m</td>
+                        <td>
+                          {course.obstaclesCleared}/{course.obstaclesTotal}
+                        </td>
+                        <td>{course.finalWorldChecksum}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <p className="generalization-subject">
+                Tested lineage {generalizationSubject?.lineageId ?? "—"} from
+                evaluation {generalizationSubject?.evaluation ?? "—"}.
+              </p>
+            </>
+          )}
+        </section>
 
         <div className="inspection-grid">
           <section
@@ -662,15 +1173,33 @@ export function App() {
             aria-labelledby="fitness-heading"
           >
             <div className="panel-heading">
-              <h2 id="fitness-heading">Fitness components</h2>
+              <h2 id="fitness-heading">Fitness and gait</h2>
             </div>
             <p className="formula">
               progress + upright − fall − energy − lateral − invalid
             </p>
-            <FitnessComponentsPanel components={episode?.components ?? null} />
+            <FitnessComponentsPanel
+              components={displayEpisode?.components ?? null}
+            />
+            <div className="descriptor-row">
+              <span>
+                Ground contact{" "}
+                <strong>
+                  {formatNumber(displayEpisode?.gait.dutyFactor, 3)}
+                </strong>
+              </span>
+              <span>
+                Diagonal rhythm{" "}
+                <strong>
+                  {formatNumber(displayEpisode?.gait.diagonalCoordination, 3)}
+                </strong>
+              </span>
+            </div>
             <div className="aggregate">
               <span>Aggregate fitness</span>
-              <strong>{formatNumber(episode?.aggregateFitness, 5)}</strong>
+              <strong>
+                {formatNumber(displayEpisode?.aggregateFitness, 5)}
+              </strong>
             </div>
           </section>
 
@@ -679,10 +1208,16 @@ export function App() {
             aria-labelledby="genome-heading"
           >
             <div className="panel-heading">
-              <h2 id="genome-heading">Champion genome</h2>
+              <h2 id="genome-heading">
+                {selectedEntry === null
+                  ? "Champion controller"
+                  : "Specimen controller"}
+              </h2>
             </div>
-            {snapshot === null ? (
-              <p className="empty-copy">No champion genome is available yet.</p>
+            {displayedEntry === null ? (
+              <p className="empty-copy">
+                No viable controller has entered the archive yet.
+              </p>
             ) : (
               <div className="table-scroll">
                 <table>
@@ -696,9 +1231,9 @@ export function App() {
                     </tr>
                   </thead>
                   <tbody>
-                    {snapshot.champion.genome.joints.map((joint, index) => (
+                    {displayedEntry.genome.joints.map((joint, index) => (
                       <tr key={index}>
-                        <th>{["L hip", "R hip", "L knee", "R knee"][index]}</th>
+                        <th>{JOINT_NAMES[index]}</th>
                         <td>{formatNumber(joint.amplitude)}</td>
                         <td>{formatNumber(joint.frequencyHz)}</td>
                         <td>{formatNumber(joint.phaseRadians)}</td>
@@ -716,12 +1251,16 @@ export function App() {
             aria-labelledby="lineage-heading"
           >
             <div className="panel-heading">
-              <h2 id="lineage-heading">Champion ancestry</h2>
-              <span>{snapshot?.champion.lineageId ?? "unassigned"}</span>
+              <h2 id="lineage-heading">
+                {selectedEntry === null
+                  ? "Champion ancestry"
+                  : "Specimen ancestry"}
+              </h2>
+              <span>{displayedEntry?.lineageId ?? "unassigned"}</span>
             </div>
             {lineage.length === 0 ? (
               <p className="empty-copy">
-                Lineage appears after generation zero is evaluated.
+                Lineage appears after a viable founder enters the archive.
               </p>
             ) : (
               <ol className="lineage-list">
@@ -729,14 +1268,15 @@ export function App() {
                   <li key={record.id}>
                     <span>
                       <strong>{record.id}</strong>
-                      <small>genome seed {record.genomeSeed}</small>
+                      <small>
+                        seed {record.genomeSeed} · evaluation{" "}
+                        {record.evaluation}
+                      </small>
                     </span>
                     <span>
-                      {record.eliteCarryover
-                        ? "elite"
-                        : record.parentIds.length === 0
-                          ? "founder"
-                          : `${record.parentIds.length} parents`}
+                      {record.origin === "offspring"
+                        ? `${record.parentIds.length} parents`
+                        : record.origin}
                     </span>
                   </li>
                 ))}
@@ -746,8 +1286,8 @@ export function App() {
         </div>
       </main>
       <footer>
-        <span>Fixed morphology · deterministic Rapier · no telemetry</span>
-        <span>Controller-first MVP</span>
+        <span>Fixed quadruped · deterministic Rapier · no telemetry</span>
+        <span>Controller-first quality-diversity MVP</span>
       </footer>
     </div>
   );

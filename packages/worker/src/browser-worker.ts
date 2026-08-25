@@ -1,6 +1,9 @@
 import {
   WORKER_PROTOCOL_VERSION,
   type BatchEvaluationRequest,
+  type GeneralizationRequest,
+  type ReplayEpisodeRequest,
+  type StartExplorationRequest,
   type StartEvolutionRequest,
   type WorkerRequest,
   type WorkerResponse,
@@ -16,6 +19,7 @@ let activeRequestId: string | null = null;
 let cancellationRequested = false;
 let pauseRequested = false;
 let pausedGeneration = 0;
+let pausedEvaluations = 0;
 let releasePause: (() => void) | null = null;
 
 function reportError(requestId: string, error: unknown): void {
@@ -73,6 +77,32 @@ async function runBatch(request: BatchEvaluationRequest): Promise<void> {
   }
 }
 
+async function runReplay(request: ReplayEpisodeRequest): Promise<void> {
+  if (!begin(request.requestId)) return;
+  try {
+    const { replayEpisode } = await import("./replay-episode.js");
+    scope.postMessage(replayEpisode(request));
+  } catch (error) {
+    reportError(request.requestId, error);
+  } finally {
+    finish();
+  }
+}
+
+async function runGeneralization(
+  request: GeneralizationRequest,
+): Promise<void> {
+  if (!begin(request.requestId)) return;
+  try {
+    const { generalizeController } = await import("./generalize-controller.js");
+    scope.postMessage(generalizeController(request));
+  } catch (error) {
+    reportError(request.requestId, error);
+  } finally {
+    finish();
+  }
+}
+
 async function runEvolution(request: StartEvolutionRequest): Promise<void> {
   if (!begin(request.requestId)) return;
   try {
@@ -118,10 +148,58 @@ async function runEvolution(request: StartEvolutionRequest): Promise<void> {
   }
 }
 
+async function runExploration(request: StartExplorationRequest): Promise<void> {
+  if (!begin(request.requestId)) return;
+  try {
+    const { exploreExperiment } = await import("./explore-experiment.js");
+    scope.postMessage(
+      await exploreExperiment(request, {
+        isCancelled: () => cancellationRequested,
+        onProgress: (message) => {
+          pausedEvaluations = message.snapshot.evaluations;
+          scope.postMessage(message);
+        },
+        waitWhilePaused: async () => {
+          if (!pauseRequested) return;
+          scope.postMessage({
+            kind: "exploration-paused",
+            protocolVersion: WORKER_PROTOCOL_VERSION,
+            requestId: request.requestId,
+            evaluations: pausedEvaluations,
+          });
+          await new Promise<void>((resolve) => {
+            releasePause = resolve;
+          });
+          releasePause = null;
+          if (!cancellationRequested) {
+            scope.postMessage({
+              kind: "exploration-resumed",
+              protocolVersion: WORKER_PROTOCOL_VERSION,
+              requestId: request.requestId,
+              evaluations: pausedEvaluations,
+            });
+          }
+        },
+        yieldControl: () =>
+          new Promise((resolve) => {
+            setTimeout(resolve, 0);
+          }),
+      }),
+    );
+  } catch (error) {
+    reportError(request.requestId, error);
+  } finally {
+    finish();
+  }
+}
+
 scope.onmessage = ({ data }) => {
   if (data.requestId !== activeRequestId && activeRequestId !== null) {
     if (data.kind === "evaluate") void runBatch(data);
+    if (data.kind === "replay") void runReplay(data);
+    if (data.kind === "generalize") void runGeneralization(data);
     if (data.kind === "evolve") void runEvolution(data);
+    if (data.kind === "explore") void runExploration(data);
     return;
   }
   switch (data.kind) {
@@ -139,8 +217,17 @@ scope.onmessage = ({ data }) => {
     case "evaluate":
       void runBatch(data);
       break;
+    case "replay":
+      void runReplay(data);
+      break;
+    case "generalize":
+      void runGeneralization(data);
+      break;
     case "evolve":
       void runEvolution(data);
+      break;
+    case "explore":
+      void runExploration(data);
       break;
   }
 };

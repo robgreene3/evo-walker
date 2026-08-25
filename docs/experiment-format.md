@@ -1,46 +1,51 @@
 # Experiment format
 
-## Version 1
+## Current format: version 4
 
-EvoWalker exports UTF-8 JSON with a maximum accepted size of 5,000,000 bytes. The root is a
-strict object containing:
+EvoWalker exports strict UTF-8 JSON up to 8,000,000 bytes. The root contains:
 
-- `schemaVersion`: `1`;
-- `buildVersion`: `0.0.0`;
-- `prng.algorithm`: `mulberry32-v1`;
-- `physics`: Rapier binding/engine versions, timestep, substeps, duration, settling interval,
-  and snapshot cadence;
-- `snapshot`: GA configuration, generation, completion flag, all generation summaries and
-  their champion genomes, current champion, and complete recorded lineage;
-- `championEpisode`: provenance, component and aggregate fitness, invalid reason, energy proxy,
-  immutable body frames, termination step, and final world checksum.
+- `schemaVersion: 4`, `buildVersion`, and mode `continuous-quality-diversity`;
+- PRNG identity plus the checkpointed `mulberry32-v1` uint32 state;
+- Rapier binding/engine version, fixed timestep, substeps, duration, settling interval, and
+  replay snapshot cadence;
+- the supported six- or thirty-second episode duration in both search configuration and physics
+  metadata;
+- terrain kind, course seed, and generator version in physics, search configuration, and episode
+  provenance, plus the displayed terrain label and crossed/total feature counts;
+- quality-diversity configuration, evaluation count, occupied archive cells, current champion,
+  bounded lineage and history, and PRNG snapshot;
+- an optional champion episode with provenance, every fitness component, gait descriptor,
+  viability/fall evidence, immutable body frames, and checksum.
 
-Every number must be finite and within declared bounds. Objects reject unknown fields. Arrays,
-identifiers, parent counts, frame counts, generation counts, and input bytes are bounded.
-Cross-field validation checks history/lineage lengths, unique lineage IDs, completion state,
-champion ancestry, champion seed and fitness, and physics provenance.
+Every number must be finite and bounded. Objects reject unknown fields. Validation checks unique
+and geometrically consistent archive cells, evaluation boundaries, coverage, champion/archive
+identity, episode seed/fitness/behavior, viability, and physics provenance before UI state changes.
 
-## Compatibility and migration
+## Checkpoint semantics
 
-Version 1 accepts only its declared schema and build version. Unknown versions fail before UI
-state replacement. Additive or breaking changes require a new schema version and a documented,
-pure migration with fixtures and round-trip tests. EvoWalker never guesses at an unsupported
-format and never executes imported expressions or code.
+Pause and Stop occur between complete creature trials. Save/export is enabled only at those
+boundaries or after a validated load. Continue restores the archive and exact PRNG state, so an
+uninterrupted session and a stop/export/import/continue session produce the same subsequent core
+snapshot in the supported runtime.
 
-## Restore semantics
+History is capped at 512 points and accepted-lineage records at 4,096 so continuous experiments
+remain serializable. Very old ancestry may therefore be summarized out of a long-running file;
+the current archive and evolution state remain complete.
 
-Load/import restores the exact inspectable generation snapshot and champion replay represented
-by the document. Same-document JSON round trips are exact in the supported runtime; the final
-checksum and every stored number are retained.
+## Compatibility
 
-Version 1 does not contain the full live population and PRNG state needed to continue breeding
-from an intermediate generation. A partial snapshot can be inspected and used as evidence, then
-restarted from its saved seed and configuration. This is a deliberate recovery boundary, not a
-silent approximation of resume.
+Version 1 represented the earlier finite generational GA and did not contain a resumable
+population/PRNG state. Version 4 rejects it with recovery guidance. A valid version-2 archive is
+explicitly migrated to flat terrain and a six-second episode because those were its only possible
+environment and duration. A valid version-3 archive retains its terrain and migrates explicitly
+to six seconds. Malformed legacy input is rejected before state replacement. Keep the original
+export, or use the tagged `controller-first-mvp` build to inspect a v1 file. EvoWalker never
+guesses at incompatible experiment meaning.
 
-## Storage and recovery
+## Storage
 
-“Save local” writes the same validated JSON to the browser key
-`evowalker:experiment:v1`. “Export JSON” downloads it. Load/import validates the entire document
-first; a failure keeps the current champion and presents a recovery message. Clearing browser
-site data removes the local save but cannot remove a downloaded export.
+“Save local” uses `evowalker:experiment:v4`; “Export JSON” downloads the same validated document.
+On first access, the app may read a legacy `evowalker:experiment:v3` or
+`evowalker:experiment:v2` entry and migrate it without deleting that fallback. Load/import
+validates the entire input before replacing state. Clearing site data removes local saves but
+cannot remove an exported file.

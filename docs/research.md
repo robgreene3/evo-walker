@@ -78,3 +78,93 @@ is MIT-licensed, is the single esbuild version required by the pinned Vite toolc
 only its documented binary-selection and validation postinstall. A live full-graph `pnpm audit`
 reported no known vulnerabilities. The narrow `esbuild: true` entry therefore replaces the
 generated unresolved placeholder; no wildcard build permission is enabled.
+
+## 2026-08-09 controller-first research delta
+
+### Documented
+
+- The original MAP-Elites paper defines an archive whose user-chosen behavior cells retain
+  high-performing, qualitatively different solutions: <https://arxiv.org/abs/1504.04909>.
+- The QD framing explicitly differs from single-objective optimization by returning an archive
+  of locally high-performing behaviors: <https://doi.org/10.3389/frobt.2016.00040>.
+- A 2025 survey covers newer QD families and efficiency/representation challenges while retaining
+  MAP-Elites as a foundational framework: <https://doi.org/10.1016/j.swevo.2025.102240>.
+- A 2024 runtime analysis provides theoretical evidence that QD can also help optimization, but it
+  does not imply superiority for every budget or domain: <https://doi.org/10.24963/ijcai.2024/773>.
+- Work on reproducibility-aware QD targets uncertain/noisy domains. EvoWalker's current same-build
+  deterministic simulator does not justify adding that optimization layer yet:
+  <https://arxiv.org/abs/2304.03672>.
+
+### Supported recommendation
+
+Use a plain deterministic MAP-Elites-style grid for this low-dimensional periodic-controller
+problem. Duty factor and diagonal coordination are visible, bounded gait descriptors; a hard
+complete-trial viability gate prevents fallen sprinters from entering any cell. A fixed symmetric
+quadruped supplies a longer stable control path than the prior biped without crossing into
+morphology evolution.
+
+### Not adopted
+
+Surrogate-assisted illumination, deep reinforcement learning, neural controllers, and learned
+behavior embeddings could reduce evaluations or enlarge expressivity in other domains, but here
+they would add hidden state, dependencies, and harder checkpoint semantics before measured need.
+The next research trigger is archive saturation, measured throughput pressure, or an explicitly
+authorized morphology phase—not novelty alone.
+
+## 2026-08-09 terrain and morphology staging delta
+
+### Documented
+
+- Rapier box colliders expose explicit half-extents, translation, and rotation, allowing the
+  renderer and simulation to consume one immutable course description:
+  <https://rapier.rs/docs/user_guides/javascript/colliders/>.
+- Enhanced POET demonstrates paired environment/agent generation as a route toward increasingly
+  difficult challenges, but depends on transfer and environment-admission mechanisms absent from
+  this MVP: <https://proceedings.mlr.press/v119/wang20l.html>.
+- DERL studies morphology and control learning across diverse environments; it supports treating
+  environmental diversity as consequential, not introducing simultaneous body genes before an
+  environment-only intervention is measurable: <https://arxiv.org/abs/2102.02202>.
+- Modular controller work for diverse morphologies addresses controller transfer after topology
+  variation exists, a later problem than EvoWalker's fixed-body terrain gate:
+  <https://arxiv.org/abs/2306.09358>.
+- Multi-environment MAP-Elites formalizes niches across environments, but adds a second archive
+  dimension and evaluation cost that are not yet justified by a single-course user control:
+  <https://arxiv.org/abs/2007.05352>.
+
+### Supported recommendation
+
+Introduce bounded deterministic terrain first and hold the body, controller, fitness, and search
+operators fixed. This produces visible physical variety and a falsifiable selection-pressure test
+without making cause and effect opaque. Seed/version the generator, preserve flat ground as the
+compatibility baseline, and require exact replay plus a viable feature-clearing champion.
+
+### Deferred trigger
+
+Before morphology genes, add evidence for cross-course evaluation or a bounded curriculum if users
+need transferable rather than course-specialized gaits. Morphology becomes justified only when
+fixed-body archives repeatedly saturate or fail across validated courses and the new representation
+can define structural validity, repair, fair comparison, and persisted replay unambiguously.
+
+## 2026-08-25 cross-course diagnostic delta
+
+### Observed
+
+- EvoWalker already had one immutable seeded course description consumed by direct simulation,
+  worker evaluation, replay, rendering, and persistence. Reusing that boundary for four serial
+  trials required no dependency, physics, schema, or representation change.
+- A controller summary produced by worker protocol v5 matched direct deterministic simulation
+  exactly on every terrain kind, including fitness, progress, viability, feature clearance, and
+  final-world checksum.
+
+### Supported recommendation
+
+Expose cross-course performance as a diagnostic before making it a selection objective. This
+lets users see specialization and transfer without multiplying each evolutionary evaluation by
+four or obscuring which intervention caused a change. Mean and worst fitness remain descriptive
+statistics, not a new scientific robustness score.
+
+### Deferred trigger
+
+Do not add a generalist objective or curriculum from one successful controller. First collect
+repeated reports across seeds, archive niches, course seeds, and both episode durations; then
+predeclare an admission rule and compute budget. Morphology remains separately authorized work.
