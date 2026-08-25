@@ -46,3 +46,11 @@ Six-second quick trials remain the default. A persisted thirty-second endurance 
 same fixed timestep, body, controller, fitness, archive, terrain, and worker boundary. A bounded
 comparison and 120-evaluation search gate establish exact replay and a viable sustained champion;
 the longer mode costs roughly five times more computation and is labelled accordingly.
+
+## Cross-course controller challenge — complete
+
+The current champion or an inspected archive specimen can run unchanged across all four existing
+terrain courses in a dedicated worker. The UI reports viability, aggregate fitness, forward
+progress, feature clearance, and final-world checksum per course plus deliberately simple summary
+statistics. The diagnostic does not feed results back into the archive, add a curriculum, or
+change the genome, physics, fitness, persistence schema, or search operators.

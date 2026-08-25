@@ -3,8 +3,8 @@
 - Objective: deliver EvoWalker's controller-first MVP in ordered, evidence-gated slices.
 - Current state: deterministic fixed-quadruped simulation, legacy controller GA, continuous
   controller-only quality-diversity archive, uninterrupted replay, worker exploration, four
-  seeded physical courses, selectable six- or thirty-second trials, and schema-v4 resumable
-  persistence are implemented.
+  seeded physical courses, selectable six- or thirty-second trials, a four-course controller
+  challenge, and schema-v4 resumable persistence are implemented.
 - Canonical instructions: `AGENTS.md`; preserved source brief: the numbered root files.
 - Evidence: `docs/verification.md`, automated suites, and canonical benchmark tables.
 - Decisions: `docs/decisions/0001-controller-first-workspace.md`,
@@ -12,7 +12,8 @@
   `docs/decisions/0003-continuous-quality-diversity-quadruped.md`,
   `docs/decisions/0004-interactive-gait-atlas.md`,
   `docs/decisions/0005-deterministic-terrain-generalization.md`, and
-  `docs/decisions/0006-selectable-endurance-episodes.md`.
+  `docs/decisions/0006-selectable-endurance-episodes.md`, and
+  `docs/decisions/0007-cross-course-controller-challenge.md`.
 - Release evidence: the authored Playwright suite passes the production critical journey in
   Chromium, Firefox, and WebKit plus a 720-evaluation sustained Chromium run; the live production
   advisory query reports no known vulnerabilities; the integrity and recovery gates are recorded
@@ -27,5 +28,9 @@
   Firefox, and WebKit.
 - Endurance evidence: a 120-evaluation seed-42 run found an exactly replaying viable 30-second
   champion with `0.502754 m` progress and six occupied niches in 52.05 seconds.
-- Next review trigger: consider cross-course evaluation and bounded curricula before any body
-  genes. Morphology evolution remains a separate phase with new validity and repair obligations.
+- Cross-course evidence: direct simulation and worker summaries match exactly for all four course
+  kinds. The production browser challenge renders four deterministic results without changing the
+  archive, blocking the live worker, producing console errors, or overflowing the mobile page.
+- Next review trigger: collect repeated cross-course reports before authorizing a generalist
+  selection objective or bounded curriculum. Morphology evolution remains a separate phase with
+  new validity and repair obligations.

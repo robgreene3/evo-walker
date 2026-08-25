@@ -1,6 +1,7 @@
 import {
   WORKER_PROTOCOL_VERSION,
   type BatchEvaluationRequest,
+  type GeneralizationRequest,
   type ReplayEpisodeRequest,
   type StartExplorationRequest,
   type StartEvolutionRequest,
@@ -81,6 +82,20 @@ async function runReplay(request: ReplayEpisodeRequest): Promise<void> {
   try {
     const { replayEpisode } = await import("./replay-episode.js");
     scope.postMessage(replayEpisode(request));
+  } catch (error) {
+    reportError(request.requestId, error);
+  } finally {
+    finish();
+  }
+}
+
+async function runGeneralization(
+  request: GeneralizationRequest,
+): Promise<void> {
+  if (!begin(request.requestId)) return;
+  try {
+    const { generalizeController } = await import("./generalize-controller.js");
+    scope.postMessage(generalizeController(request));
   } catch (error) {
     reportError(request.requestId, error);
   } finally {
@@ -182,6 +197,7 @@ scope.onmessage = ({ data }) => {
   if (data.requestId !== activeRequestId && activeRequestId !== null) {
     if (data.kind === "evaluate") void runBatch(data);
     if (data.kind === "replay") void runReplay(data);
+    if (data.kind === "generalize") void runGeneralization(data);
     if (data.kind === "evolve") void runEvolution(data);
     if (data.kind === "explore") void runExploration(data);
     return;
@@ -203,6 +219,9 @@ scope.onmessage = ({ data }) => {
       break;
     case "replay":
       void runReplay(data);
+      break;
+    case "generalize":
+      void runGeneralization(data);
       break;
     case "evolve":
       void runEvolution(data);

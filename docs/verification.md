@@ -727,3 +727,60 @@ adding more rendering or simulation dependencies.
   stops and saves, starts a six-second experiment, then restores the thirty-second checkpoint and
   its full-trial label. Automated execution remains pending because the in-app browser URL policy
   blocked re-entry to the restarted local preview; no alternate browser surface was used.
+
+## Cycle 13: four-course controller challenge
+
+- User-visible slice: challenge the live champion or an inspected archive specimen on every
+  existing terrain and expose a compact, scientifically honest transfer report.
+- Baseline: each archive and replay used exactly one selected course. Users could manually start
+  four separate experiments, but could not hold the controller fixed or compare deterministic
+  results without changing authoritative state.
+- Testable hypothesis: a separate worker can run the same controller on all four course kinds and
+  return summaries exactly equal to direct simulation while the live archive remains unchanged
+  and the interface stays responsive.
+- Predicted result: four ordered results expose viability, aggregate fitness, forward progress,
+  feature clearance, and checksum; direct and worker values match exactly; the panel has no
+  desktop/mobile page overflow or runtime error.
+- Guardrails: unchanged genome, body, physics, fitness, descriptors, archive operators, terrain
+  generator, episode duration, PRNG/checkpoint, persistence schema, dependencies, and search
+  selection. The report is diagnostic and never feeds back into evolution.
+- Falsifier: any direct/worker mismatch, archive or PRNG mutation, main-thread lockup, ambiguous
+  result ownership, console/runtime error, or page-width overflow.
+- Targeted source observation: worker protocol v5 returned exactly the direct deterministic
+  fitness, progress, viability, feature clearance, and checksum for all four terrain kinds. Five
+  worker test files with 11 tests passed; the new test contributes two cases, including invalid
+  terrain-seed rejection before simulation.
+- Browser observation: the changed production Chromium journey passed in 15.6 seconds. A separate
+  visual run produced four rows, no framework overlay, no console/page error, exact 1440-pixel
+  desktop width, and exact 390-pixel mobile width with the wide result table contained in its own
+  horizontal scroller. The observed seed-42, four-founder sample was viable on 4/4 courses; this
+  proves the diagnostic path, not general controller robustness.
+- Benchmark observation: the first parallel consolidated run completed all 12 source files and
+  36 tests, then the existing Node cancellation benchmark observed three rather than exactly two
+  completed episodes under scheduler contention. The isolated benchmark immediately passed the
+  exact-two boundary, and a complete unchanged rerun passed all 6 benchmark files / 7 tests in
+  60.62 seconds. No threshold was relaxed; repeat failure remains a timing-stability trigger.
+- Release-gate revision: the first completed three-engine matrix exposed two stale timing/text
+  assumptions outside the new diagnostic. The Chromium soak still asserted the superseded
+  pre-duration label `full trial` while the product correctly reports `full 6s`; the assertion now
+  matches the persisted duration contract. Concurrent Firefox endurance search exceeded the
+  generic 30-second assertion limit, so only that test's wait/test budgets were raised to 120/180
+  seconds in line with the already measured fivefold compute cost. Founders, selection, success
+  conditions, and product behavior were unchanged.
+- Contention revision: rerunning Firefox endurance beside the Chromium 720-evaluation soak still
+  produced no viable niche within 120 seconds. The projects were consuming the same CPU while
+  pretending to be independent performance observations. Playwright now uses one worker so each
+  CPU-bound browser journey receives an uncontended, repeatable budget. Coverage, browser engines,
+  product settings, viability gates, and the soak threshold remain unchanged; only accidental
+  cross-project contention is removed.
+- Consolidated observation: under Node 24, `pnpm verify` passed Prettier, ESLint, strict
+  TypeScript, all 12 source-test files / 36 tests, all 6 benchmark files / 7 tests in 56.96
+  seconds, the Vite production build, and the serialized 21-entry browser matrix with 19 passes
+  plus the 2 intentional non-Chromium soak skips in 5.7 minutes. Chromium, Firefox, and WebKit all
+  completed the cross-course report, endurance checkpoint, terrain recovery, specimen replay,
+  and reduced-motion mobile journey without console/page errors. Chromium alone passed the
+  calibrated 720-evaluation soak. The existing Rapier initializer and large-chunk advisories
+  remain non-fatal and unchanged.
+- Decision: **KEEP**. Cross-course transfer is now visible without changing selection pressure.
+  A curriculum or generalist objective remains deferred until repeated diagnostic evidence can
+  justify a predeclared rule and its fourfold evaluation cost.

@@ -75,6 +75,15 @@ test("runs, checkpoints, restores, and validates a continuous experiment", async
   await expect(
     page.getByRole("heading", { name: "Champion ancestry" }),
   ).toBeVisible();
+  await page
+    .getByRole("button", { name: "Test across courses", exact: true })
+    .click();
+  const challenge = page.getByRole("region", {
+    name: "Four-course challenge",
+  });
+  await expect(challenge).toHaveAttribute("data-state", "ready");
+  await expect(challenge.getByRole("row")).toHaveCount(5);
+  await expect(challenge.getByText(/\/4$/u)).toBeVisible();
   const aggregate = await page.locator(".aggregate strong").innerText();
   await page.getByRole("button", { name: "Save local", exact: true }).click();
   await page.getByLabel("Seed", { exact: true }).fill("7");
@@ -243,6 +252,7 @@ test("runs and restores a seeded physical terrain course", async ({ page }) => {
 test("runs and restores a thirty-second endurance experiment", async ({
   page,
 }) => {
+  test.setTimeout(180_000);
   const runtimeErrors = recordRuntimeErrors(page);
   await page.goto("/");
   await configure(page, 24, 4);
@@ -256,7 +266,9 @@ test("runs and restores a thirty-second endurance experiment", async ({
     "data-episode-seconds",
     "30",
   );
-  await expect(page.locator(".archive-cell.occupied").first()).toBeVisible();
+  await expect(page.locator(".archive-cell.occupied").first()).toBeVisible({
+    timeout: 120_000,
+  });
   await stopExploration(page);
   await expect(page.locator(".metric-cards")).toContainText("full 30s");
   await page.getByRole("button", { name: "Save local", exact: true }).click();
@@ -315,7 +327,7 @@ test("sustains 720 evaluations with responsive checkpoint recovery", async ({
   await expect(
     page.getByRole("button", { name: "Replay", exact: true }),
   ).toBeEnabled();
-  await expect(page.locator(".metric-cards")).toContainText("full trial");
+  await expect(page.locator(".metric-cards")).toContainText("full 6s");
   await expect(page.locator(".aggregate strong")).not.toHaveText("—");
   const visibleMetrics = await page
     .locator(".metric-cards strong")

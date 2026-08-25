@@ -307,7 +307,8 @@ Populate this section after inspecting or creating the repository. Keep only sta
 - Current experiment: fixed eight-joint quadruped; selectable 6-second quick or 30-second
   endurance episode; continuous deterministic MAP-Elites-style controller archive; deterministic
   terrain generator v1; schema-v4 resumable checkpoints with explicit version-2/version-3
-  migration to 6-second trials.
+  migration to 6-second trials; worker-protocol-v5 four-course controller diagnostics that do not
+  alter archive selection.
 - Project-specific done gate: all seven original MVP slices pass. The controller-first
   quality-diversity correction passes core, worker, persistence, benchmark, and browser gates;
   morphology and neural controllers remain deferred.

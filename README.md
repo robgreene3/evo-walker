@@ -18,6 +18,12 @@ specimen while evolution continues. Fitness, genome, and ancestry follow the dis
 save or export retains the authoritative live archive plus PRNG state for deterministic
 continuation.
 
+Any live champion or selected archive specimen can also enter a four-course challenge. The same
+controller runs unchanged on flat ground, the gentle rise, the curb trail, and the uneven trail
+in a separate worker. The resulting viability, fitness, progress, obstacle clearance, and
+checksum report is diagnostic evidence only; it never changes the archive or its selection
+pressure.
+
 The original build brief remains unchanged in `01-RESEARCH-AND-VIABILITY.md`,
 `02-AGENTS.md`, and `03-GPT-5.6-CODEX-MASTER-PROMPT.md`. `AGENTS.md` is the active repository
 instruction file. The package-era README is preserved at `docs/brief/PACKAGE-README.md`.
@@ -68,10 +74,11 @@ evidence and environment caveats are in
 - `packages/sim`: deterministic Rapier world, fixed quadruped, episode scoring, gait
   descriptors, immutable replay frames, reset, and checksum.
 - `packages/worker`: versioned direct/evolution/exploration/replay protocol with
-  evaluation-boundary pause, resume, stop, and browser/Node entries.
+  evaluation-boundary pause, resume, stop, cross-course controller diagnostics, and browser/Node
+  entries.
 - `apps/web`: accessible React controls, uninterrupted Three.js champion replay, a
   keyboard-operable gait atlas with isolated specimen replay, metrics/history, lineage
-  inspection, and local/JSON persistence.
+  inspection, four-course robustness reports, and local/JSON persistence.
 
 Simulation truth stays in the deterministic core and worker. Rendering consumes copied frames
 and never mutates experiment state.

@@ -2,10 +2,12 @@ import { parentPort } from "node:worker_threads";
 import { evaluateBatch } from "./evaluate-batch.js";
 import { evolveExperiment } from "./evolve-experiment.js";
 import { exploreExperiment } from "./explore-experiment.js";
+import { generalizeController } from "./generalize-controller.js";
 import { replayEpisode } from "./replay-episode.js";
 import {
   WORKER_PROTOCOL_VERSION,
   type BatchEvaluationRequest,
+  type GeneralizationRequest,
   type ReplayEpisodeRequest,
   type StartExplorationRequest,
   type StartEvolutionRequest,
@@ -76,6 +78,16 @@ function runReplay(request: ReplayEpisodeRequest): void {
   if (!begin(request.requestId)) return;
   try {
     post(replayEpisode(request));
+  } catch (error) {
+    reportError(request.requestId, error);
+  } finally {
+    finish();
+  }
+}
+function runGeneralization(request: GeneralizationRequest): void {
+  if (!begin(request.requestId)) return;
+  try {
+    post(generalizeController(request));
   } catch (error) {
     reportError(request.requestId, error);
   } finally {
@@ -172,6 +184,7 @@ parentPort.on("message", (request: WorkerRequest) => {
   if (request.requestId !== activeRequestId && activeRequestId !== null) {
     if (request.kind === "evaluate") void runBatch(request);
     if (request.kind === "replay") runReplay(request);
+    if (request.kind === "generalize") runGeneralization(request);
     if (request.kind === "evolve") void runEvolution(request);
     if (request.kind === "explore") void runExploration(request);
     return;
@@ -193,6 +206,9 @@ parentPort.on("message", (request: WorkerRequest) => {
       break;
     case "replay":
       runReplay(request);
+      break;
+    case "generalize":
+      runGeneralization(request);
       break;
     case "evolve":
       void runEvolution(request);

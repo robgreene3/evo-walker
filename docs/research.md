@@ -144,3 +144,27 @@ Before morphology genes, add evidence for cross-course evaluation or a bounded c
 need transferable rather than course-specialized gaits. Morphology becomes justified only when
 fixed-body archives repeatedly saturate or fail across validated courses and the new representation
 can define structural validity, repair, fair comparison, and persisted replay unambiguously.
+
+## 2026-08-25 cross-course diagnostic delta
+
+### Observed
+
+- EvoWalker already had one immutable seeded course description consumed by direct simulation,
+  worker evaluation, replay, rendering, and persistence. Reusing that boundary for four serial
+  trials required no dependency, physics, schema, or representation change.
+- A controller summary produced by worker protocol v5 matched direct deterministic simulation
+  exactly on every terrain kind, including fitness, progress, viability, feature clearance, and
+  final-world checksum.
+
+### Supported recommendation
+
+Expose cross-course performance as a diagnostic before making it a selection objective. This
+lets users see specialization and transfer without multiplying each evolutionary evaluation by
+four or obscuring which intervention caused a change. Mean and worst fitness remain descriptive
+statistics, not a new scientific robustness score.
+
+### Deferred trigger
+
+Do not add a generalist objective or curriculum from one successful controller. First collect
+repeated reports across seeds, archive niches, course seeds, and both episode durations; then
+predeclare an admission rule and compute budget. Morphology remains separately authorized work.

@@ -18,6 +18,8 @@ import {
 import type { EpisodeResult, FitnessComponents } from "@evowalker/sim";
 import {
   WORKER_PROTOCOL_VERSION,
+  type GeneralizationCompletedMessage,
+  type GeneralizationRequest,
   type ReplayEpisodeRequest,
   type StartExplorationRequest,
   type WorkerResponse,
@@ -172,6 +174,18 @@ export function App() {
     "idle" | "loading" | "ready" | "error"
   >("idle");
   const [inspectionError, setInspectionError] = useState<string | null>(null);
+  const [generalization, setGeneralization] =
+    useState<GeneralizationCompletedMessage | null>(null);
+  const [generalizationState, setGeneralizationState] = useState<
+    "idle" | "loading" | "ready" | "error"
+  >("idle");
+  const [generalizationMessage, setGeneralizationMessage] = useState(
+    "Test one controller unchanged across every proving ground.",
+  );
+  const [generalizationSubject, setGeneralizationSubject] = useState<{
+    readonly lineageId: string;
+    readonly evaluation: number;
+  } | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [playbackSpeed, setPlaybackSpeed] = useState(1);
   const [replayToken, setReplayToken] = useState(0);
@@ -182,9 +196,11 @@ export function App() {
   const [discoveryMessage, setDiscoveryMessage] = useState("Awaiting founders");
   const workerRef = useRef<Worker | null>(null);
   const inspectionWorkerRef = useRef<Worker | null>(null);
+  const generalizationWorkerRef = useRef<Worker | null>(null);
   const requestIdRef = useRef<string | null>(null);
   const requestSequence = useRef(0);
   const inspectionSequence = useRef(0);
+  const generalizationSequence = useRef(0);
   const statusRef = useRef<ExperimentStatus>("initial");
   const episodeRef = useRef<EpisodeResult | null>(null);
   const archiveSizeRef = useRef(0);
@@ -207,6 +223,17 @@ export function App() {
     setEpisode(next);
   }, []);
 
+  const clearGeneralization = useCallback(() => {
+    generalizationWorkerRef.current?.terminate();
+    generalizationWorkerRef.current = null;
+    setGeneralization(null);
+    setGeneralizationState("idle");
+    setGeneralizationMessage(
+      "Test one controller unchanged across every proving ground.",
+    );
+    setGeneralizationSubject(null);
+  }, []);
+
   const clearInspection = useCallback(() => {
     inspectionWorkerRef.current?.terminate();
     inspectionWorkerRef.current = null;
@@ -215,10 +242,12 @@ export function App() {
     setInspectionState("idle");
     setInspectionError(null);
     setReplayToken((token) => token + 1);
-  }, []);
+    clearGeneralization();
+  }, [clearGeneralization]);
 
   const inspectEntry = useCallback(
     (entry: QualityDiversityArchiveEntry) => {
+      clearGeneralization();
       inspectionWorkerRef.current?.terminate();
       const worker = new Worker(
         new URL(
@@ -281,7 +310,7 @@ export function App() {
       };
       worker.postMessage(request);
     },
-    [experimentDurationSeconds, experimentTerrain],
+    [clearGeneralization, experimentDurationSeconds, experimentTerrain],
   );
 
   const receive = useCallback(
@@ -368,6 +397,8 @@ export function App() {
       workerRef.current = null;
       inspectionWorkerRef.current?.terminate();
       inspectionWorkerRef.current = null;
+      generalizationWorkerRef.current?.terminate();
+      generalizationWorkerRef.current = null;
     };
   }, [createWorker]);
 
@@ -548,6 +579,73 @@ export function App() {
   const displayEpisode = selectedEntry === null ? episode : inspectionEpisode;
   const displayedEntry = selectedEntry ?? champion;
   const lineage = ancestry(snapshot, displayedEntry?.lineageId ?? null);
+  const worstForwardProgress =
+    generalization === null
+      ? null
+      : Math.min(
+          ...generalization.courses.map((course) => course.forwardProgress),
+        );
+
+  const testAcrossCourses = () => {
+    if (displayedEntry === null) return;
+    generalizationWorkerRef.current?.terminate();
+    const worker = new Worker(
+      new URL(
+        "../../../packages/worker/src/browser-worker.ts",
+        import.meta.url,
+      ),
+      { type: "module", name: "evowalker-generalization" },
+    );
+    const requestId = `generalization-${displayedEntry.lineageId}-${String(++generalizationSequence.current)}`;
+    setGeneralization(null);
+    setGeneralizationState("loading");
+    setGeneralizationMessage(
+      `Running four ${String(experimentDurationSeconds)}-second trials off the main thread…`,
+    );
+    setGeneralizationSubject({
+      lineageId: displayedEntry.lineageId,
+      evaluation: displayedEntry.evaluation,
+    });
+    worker.addEventListener(
+      "message",
+      ({ data }: MessageEvent<WorkerResponse>) => {
+        if (data.requestId !== requestId) return;
+        if (data.kind === "error") {
+          setGeneralizationState("error");
+          setGeneralizationMessage(data.message);
+          worker.terminate();
+          generalizationWorkerRef.current = null;
+          return;
+        }
+        if (data.kind !== "generalization-completed") return;
+        setGeneralization(data);
+        setGeneralizationState("ready");
+        setGeneralizationMessage(
+          `Completed four deterministic trials for the gait born at evaluation ${String(displayedEntry.evaluation)}.`,
+        );
+        worker.terminate();
+        generalizationWorkerRef.current = null;
+      },
+    );
+    worker.addEventListener("error", (event) => {
+      setGeneralizationState("error");
+      setGeneralizationMessage(
+        event.message || "The cross-course worker failed.",
+      );
+      worker.terminate();
+      generalizationWorkerRef.current = null;
+    });
+    generalizationWorkerRef.current = worker;
+    const request: GeneralizationRequest = {
+      kind: "generalize",
+      protocolVersion: WORKER_PROTOCOL_VERSION,
+      requestId,
+      genome: displayedEntry.genome,
+      terrainSeed: experimentTerrain.seed,
+      episodeDurationSeconds: experimentDurationSeconds,
+    };
+    worker.postMessage(request);
+  };
 
   return (
     <div
@@ -968,6 +1066,106 @@ export function App() {
             />
           </aside>
         </div>
+
+        <section
+          className="generalization-panel panel"
+          aria-labelledby="generalization-heading"
+          data-state={generalizationState}
+        >
+          <div className="panel-heading">
+            <div>
+              <p className="eyebrow">Robustness laboratory</p>
+              <h2 id="generalization-heading">Four-course challenge</h2>
+            </div>
+            <button
+              type="button"
+              className="primary"
+              disabled={
+                displayedEntry === null || generalizationState === "loading"
+              }
+              onClick={testAcrossCourses}
+            >
+              {generalizationState === "loading"
+                ? "Testing…"
+                : "Test across courses"}
+            </button>
+          </div>
+          <div
+            className={`generalization-status ${generalizationState}`}
+            role="status"
+            aria-live="polite"
+          >
+            <span>{generalizationMessage}</span>
+            <small>
+              Diagnostic only · same genome, course seed, duration, physics, and
+              fitness · archive selection is unchanged
+            </small>
+          </div>
+          {generalization === null ? null : (
+            <>
+              <div
+                className="generalization-summary"
+                aria-label="Challenge summary"
+              >
+                <div>
+                  <span>Viable courses</span>
+                  <strong>
+                    {generalization.viableCourses}/
+                    {generalization.courses.length}
+                  </strong>
+                </div>
+                <div>
+                  <span>Worst fitness</span>
+                  <strong>
+                    {formatNumber(generalization.worstAggregateFitness, 5)}
+                  </strong>
+                </div>
+                <div>
+                  <span>Mean fitness</span>
+                  <strong>
+                    {formatNumber(generalization.meanAggregateFitness, 5)}
+                  </strong>
+                </div>
+                <div>
+                  <span>Worst progress</span>
+                  <strong>{formatNumber(worstForwardProgress, 4)} m</strong>
+                </div>
+              </div>
+              <div className="table-scroll generalization-table">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Course</th>
+                      <th>Viable</th>
+                      <th>Fitness</th>
+                      <th>Progress</th>
+                      <th>Cleared</th>
+                      <th>Checksum</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {generalization.courses.map((course) => (
+                      <tr key={course.terrain.kind}>
+                        <th>{course.label}</th>
+                        <td>{course.viable ? "Yes" : "No"}</td>
+                        <td>{formatNumber(course.aggregateFitness, 5)}</td>
+                        <td>{formatNumber(course.forwardProgress, 4)} m</td>
+                        <td>
+                          {course.obstaclesCleared}/{course.obstaclesTotal}
+                        </td>
+                        <td>{course.finalWorldChecksum}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <p className="generalization-subject">
+                Tested lineage {generalizationSubject?.lineageId ?? "—"} from
+                evaluation {generalizationSubject?.evaluation ?? "—"}.
+              </p>
+            </>
+          )}
+        </section>
 
         <div className="inspection-grid">
           <section

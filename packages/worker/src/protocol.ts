@@ -9,7 +9,7 @@ import type {
 } from "@evowalker/core";
 import type { EpisodeResult, FitnessComponents } from "@evowalker/sim";
 
-export const WORKER_PROTOCOL_VERSION = 4 as const;
+export const WORKER_PROTOCOL_VERSION = 5 as const;
 export interface BatchEvaluationRequest {
   readonly kind: "evaluate";
   readonly protocolVersion: number;
@@ -22,6 +22,14 @@ export interface ReplayEpisodeRequest {
   readonly requestId: string;
   readonly genome: PeriodicControllerGenome;
   readonly terrain: TerrainConfig;
+  readonly episodeDurationSeconds: EpisodeDurationSeconds;
+}
+export interface GeneralizationRequest {
+  readonly kind: "generalize";
+  readonly protocolVersion: number;
+  readonly requestId: string;
+  readonly genome: PeriodicControllerGenome;
+  readonly terrainSeed: number;
   readonly episodeDurationSeconds: EpisodeDurationSeconds;
 }
 export interface CancelEvaluationRequest {
@@ -55,6 +63,7 @@ export interface ResumeEvolutionRequest {
 export type WorkerRequest =
   | BatchEvaluationRequest
   | ReplayEpisodeRequest
+  | GeneralizationRequest
   | CancelEvaluationRequest
   | StartEvolutionRequest
   | StartExplorationRequest
@@ -86,6 +95,26 @@ export interface ReplayEpisodeCompletedMessage {
   readonly protocolVersion: typeof WORKER_PROTOCOL_VERSION;
   readonly requestId: string;
   readonly episode: EpisodeResult;
+}
+export interface GeneralizationCourseResult {
+  readonly terrain: TerrainConfig;
+  readonly label: string;
+  readonly aggregateFitness: number;
+  readonly forwardProgress: number;
+  readonly viable: boolean;
+  readonly obstaclesCleared: number;
+  readonly obstaclesTotal: number;
+  readonly invalidReason: string | null;
+  readonly finalWorldChecksum: string;
+}
+export interface GeneralizationCompletedMessage {
+  readonly kind: "generalization-completed";
+  readonly protocolVersion: typeof WORKER_PROTOCOL_VERSION;
+  readonly requestId: string;
+  readonly courses: readonly GeneralizationCourseResult[];
+  readonly viableCourses: number;
+  readonly meanAggregateFitness: number;
+  readonly worstAggregateFitness: number;
 }
 export interface CancelledMessage {
   readonly kind: "cancelled";
@@ -163,6 +192,7 @@ export type WorkerResponse =
   | ProgressMessage
   | CompletedMessage
   | ReplayEpisodeCompletedMessage
+  | GeneralizationCompletedMessage
   | CancelledMessage
   | ErrorMessage
   | EvolutionProgressMessage

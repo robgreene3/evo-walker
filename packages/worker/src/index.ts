@@ -11,6 +11,7 @@ export type { EvolutionHooks, EvolutionTerminal } from "./evolve-experiment.js";
 export { exploreExperiment } from "./explore-experiment.js";
 export type { ExplorationHooks } from "./explore-experiment.js";
 export { replayEpisode } from "./replay-episode.js";
+export { generalizeController } from "./generalize-controller.js";
 export { WORKER_PROTOCOL_VERSION } from "./protocol.js";
 export type {
   BatchEvaluationRequest,
@@ -24,6 +25,9 @@ export type {
   EvolutionPausedMessage,
   EvolutionProgressMessage,
   EvolutionResumedMessage,
+  GeneralizationCompletedMessage,
+  GeneralizationCourseResult,
+  GeneralizationRequest,
   ExplorationPausedMessage,
   ExplorationProgressMessage,
   ExplorationResumedMessage,
