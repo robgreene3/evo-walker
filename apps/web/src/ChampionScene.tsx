@@ -29,6 +29,35 @@ interface RenderBody {
   readonly material: THREE.MeshPhysicalMaterial;
 }
 
+function createRenderer(): THREE.WebGLRenderer | null {
+  try {
+    const probe = document.createElement("canvas");
+    const context = probe.getContext("webgl2", {
+      alpha: true,
+      depth: true,
+      stencil: false,
+      antialias: true,
+      premultipliedAlpha: true,
+      preserveDrawingBuffer: false,
+      powerPreference: "default",
+      failIfMajorPerformanceCaveat: false,
+    });
+    if (context === null) return null;
+    context.getExtension("WEBGL_lose_context")?.loseContext();
+  } catch {
+    return null;
+  }
+
+  try {
+    return new THREE.WebGLRenderer({
+      antialias: true,
+      alpha: false,
+    });
+  } catch {
+    return null;
+  }
+}
+
 function makeBody(id: string): RenderBody {
   const group = new THREE.Group();
   const material = new THREE.MeshPhysicalMaterial({
@@ -118,7 +147,12 @@ export function ChampionScene({
     let distance = 5.8;
     const cameraTarget = new THREE.Vector3(0, 0.78, 0);
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+    const renderer = createRenderer();
+    if (renderer === null) {
+      container.dataset["renderer"] = "unavailable";
+      return;
+    }
+    container.dataset["renderer"] = "ready";
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.shadowMap.enabled = true;
@@ -443,6 +477,12 @@ export function ChampionScene({
 
   return (
     <div className="scene-shell" ref={containerRef}>
+      <div className="scene-renderer-fallback scene-empty" role="status">
+        <span>3D replay unavailable</span>
+        <small>
+          Evolution, checkpoints, and results remain fully available.
+        </small>
+      </div>
       {episode === null ? (
         <div className="scene-empty">
           <span>No viable champion yet</span>

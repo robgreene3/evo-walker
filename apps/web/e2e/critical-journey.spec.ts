@@ -30,6 +30,36 @@ function evaluationsFrom(text: string): number {
 
 const sustainedRunTimeoutMs = process.env["CI"] === "true" ? 180_000 : 80_000;
 
+test("keeps experiment controls available without WebGL", async ({ page }) => {
+  const runtimeErrors = recordRuntimeErrors(page);
+  await page.addInitScript(() => {
+    Object.defineProperty(HTMLCanvasElement.prototype, "getContext", {
+      configurable: true,
+      value: () => null,
+    });
+  });
+  await page.goto("/");
+
+  await expect(page.locator(".app-frame")).toHaveAttribute(
+    "data-status",
+    "initial",
+  );
+  await expect(page.locator(".scene-shell")).toHaveAttribute(
+    "data-renderer",
+    "unavailable",
+  );
+  await expect(
+    page.getByRole("button", { name: "Begin evolution", exact: true }),
+  ).toBeEnabled();
+  await expect(
+    page.getByText(
+      "Evolution, checkpoints, and results remain fully available.",
+      { exact: true },
+    ),
+  ).toBeVisible();
+  expect(runtimeErrors).toEqual([]);
+});
+
 async function stopExploration(page: Page): Promise<void> {
   await page.getByRole("button", { name: "Stop", exact: true }).click();
   await expect(page.locator(".app-frame")).toHaveAttribute(

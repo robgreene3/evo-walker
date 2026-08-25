@@ -454,6 +454,17 @@ select {
 .scene-empty small {
   color: var(--muted);
 }
+.scene-renderer-fallback {
+  inset: auto 1rem 1rem;
+  display: none;
+  padding: 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: rgba(8, 16, 25, 0.92);
+}
+.scene-shell[data-renderer="unavailable"] .scene-renderer-fallback {
+  display: grid;
+}
 .scene-help {
   margin: 0;
   padding: 10px 20px;

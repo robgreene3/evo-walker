@@ -803,6 +803,21 @@ adding more rendering or simulation dependencies.
   separate GitHub jobs and clean runners. The browser matrix waits for the core gate, installs only
   its own engine, and keeps all three engines visible even if one fails. Tests, timeouts, engines,
   product behavior, and scientific thresholds remain unchanged.
+- Hosted WebGL revision: pull-request run `32908762254` passed Core in 1 minute 57 seconds, WebKit
+  in 2 minutes 1 second, and Chromium in 4 minutes 25 seconds, including all 720 evaluations.
+  Firefox still rendered no application on its independent runner, falsifying cross-browser
+  machine carryover. The replay renderer previously constructed required WebGL2 inside an
+  unguarded React effect, so an unavailable context could unmount the whole interface. It now
+  probes the exact WebGL2 capability, immediately releases the probe, preserves Three.js's normal
+  renderer path, and otherwise shows a clear replay fallback while evolution, results, and
+  checkpoints remain usable. A forced no-WebGL journey passed in Chromium, Firefox, and WebKit in
+  13.2 seconds with no console/page errors; the normal critical journey then passed in all three in
+  43.8 seconds. The expanded local matrix passed 21 functional journeys plus two intentional skips;
+  only the 80-second local soak missed at 673/720. Isolated modified runs reached 671–681, while an
+  untouched detached `745393c` baseline reached 680 under the same conditions, attributing the miss
+  to current host throughput rather than this revision. The 720 target remains unchanged and still
+  governs CI with its existing 180-second shared-runner allowance; the final current-code CI-policy
+  soak passed all 720 evaluations in 1.5 minutes.
 - Decision: **KEEP**. Cross-course transfer is now visible without changing selection pressure.
   A curriculum or generalist objective remains deferred until repeated diagnostic evidence can
   justify a predeclared rule and its fourfold evaluation cost.
