@@ -14,9 +14,10 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  verify:
+  core:
+    name: Core
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 10
 
     steps:
       - name: Check out repository
@@ -34,17 +35,40 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Install browser engines
-        run: pnpm exec playwright install --with-deps chromium firefox webkit
-
       - name: Verify source, benchmarks, and production build
         run: pnpm verify:core
 
-      - name: Verify Chromium journey
-        run: pnpm exec playwright test --project=chromium
+  browser:
+    name: Browser (${{ matrix.project }})
+    needs: core
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        project:
+          - chromium
+          - firefox
+          - webkit
 
-      - name: Verify Firefox journey
-        run: pnpm exec playwright test --project=firefox
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
 
-      - name: Verify WebKit journey
-        run: pnpm exec playwright test --project=webkit
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24.14.0
+          package-manager-cache: false
+
+      - name: Install pnpm
+        run: npm install --global pnpm@11.9.0
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install browser engine
+        run: pnpm exec playwright install --with-deps ${{ matrix.project }}
+
+      - name: Verify browser journey
+        run: pnpm exec playwright test --project=${{ matrix.project }}

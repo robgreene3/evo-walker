@@ -795,6 +795,14 @@ adding more rendering or simulation dependencies.
   engine, source test, benchmark, or soak evaluation count changed. A local CI-mode reproduction
   then passed the three fresh processes sequentially: Chromium 7/7 in 3.0 minutes, Firefox 6/6 in
   3.7 minutes, and WebKit 6/6 in 41.9 seconds, with only the two intended non-Chromium soak skips.
+- Hosted-run isolation revision: pull-request run `32907365970` proved the revised core gate and
+  Chromium journey, including all 720 soak evaluations. Firefox then failed to render the app in
+  six independent contexts despite its fresh Playwright process; even the first form input was
+  absent, while the skipped soak remained the only non-failure. This localizes the defect to
+  browser-machine state rather than search viability. Core verification and each browser now use
+  separate GitHub jobs and clean runners. The browser matrix waits for the core gate, installs only
+  its own engine, and keeps all three engines visible even if one fails. Tests, timeouts, engines,
+  product behavior, and scientific thresholds remain unchanged.
 - Decision: **KEEP**. Cross-course transfer is now visible without changing selection pressure.
   A curriculum or generalist objective remains deferred until repeated diagnostic evidence can
   justify a predeclared rule and its fourfold evaluation cost.
