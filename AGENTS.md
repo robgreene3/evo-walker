@@ -306,3 +306,8 @@ Populate this section after inspecting or creating the repository. Keep only sta
 - Project-specific done gate: Slices 1–3 pass; Slice 4 direct/worker equivalence passes and
   browser responsiveness remains before it closes. The full MVP remains governed by the
   definition above.
+
+## Agent contract
+Global rules live in `~/.codex/AGENTS.md` on the operator's machine and apply here unchanged.
+**Verification oracle:** `pnpm verify` — run before every pull request and paste the tail in the PR body.
+**Handoff files:** `PLAN.md` · `PROGRESS.md` (append-only) · `HANDOFF.md` (rewritten each session) · `DECISIONS.md` (dated).

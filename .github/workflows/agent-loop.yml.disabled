@@ -1,0 +1,40 @@
+# Phase D — repo-mediated autonomous loop. Rename to agent-loop.yml to enable.
+# Requires: Claude GitHub app installed (/install-github-app), secret CLAUDE_CODE_OAUTH_TOKEN,
+# Codex cloud connected with Automatic reviews on. Merge to main stays human.
+name: agent-loop
+on:
+  issues:            { types: [labeled] }
+  issue_comment:     { types: [created] }
+  pull_request_review_comment: { types: [created] }
+permissions: { contents: write, pull-requests: write, issues: write, id-token: write }
+jobs:
+  implement:
+    if: github.event.label.name == 'agent:run'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          prompt: |
+            Implement issue #${{ github.event.issue.number }} on branch claude/issue-${{ github.event.issue.number }}.
+            Run the verification oracle from AGENTS.md, use the /handoff skill, open a PR with the repo template,
+            and add the label agent-round:1.
+  revise:
+    # Codex review comments arrive from a bot account; allow it explicitly and cap the rounds.
+    if: >
+      github.event_name == 'pull_request_review_comment' &&
+      contains(github.event.comment.user.login, 'codex') &&
+      !contains(github.event.pull_request.labels.*.name, 'agent-round:3')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          allowed_bots: "chatgpt-codex-connector,codex"
+          prompt: |
+            Address the Codex review comment on this PR. Re-run the oracle, update HANDOFF.md,
+            push to the PR branch, and increment the agent-round:N label by one. Never merge.

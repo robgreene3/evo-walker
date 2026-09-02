@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git status*)", "Bash(git diff*)", "Bash(git log*)", "Bash(git add*)", "Bash(git commit*)",
+      "Bash(git checkout*)", "Bash(git switch*)", "Bash(git push origin *)",
+      "Bash(npm run *)", "Bash(pnpm *)", "Bash(node *)", "Bash(cargo test*)", "Bash(cargo build*)"
+    ],
+    "deny": [
+      "Bash(git push --force*)", "Bash(git push -f*)", "Bash(git branch -D*)", "Bash(rm -rf *)"
+    ]
+  }
+}
