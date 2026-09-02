@@ -2,6 +2,7 @@
 name: handoff
 description: End-of-session handoff. Use when finishing a work session, before opening a PR, or when asked to "hand off", "wrap up", or "write the handoff".
 ---
+
 # Handoff
 
 1. Run the verification oracle named in `AGENTS.md`; capture the tail of its output.
