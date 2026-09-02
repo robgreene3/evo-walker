@@ -1,12 +1,12 @@
 # Phase D — repo-mediated autonomous loop. Rename to agent-loop.yml to enable.
 # Requires: Claude GitHub app installed (/install-github-app), secret CLAUDE_CODE_OAUTH_TOKEN,
 # Codex cloud connected with Automatic reviews on. Merge to main stays human.
+# Enable on PRIVATE repos only: the PR branch's AGENTS.md/CLAUDE.md is read by the action, so a public PR is a prompt-injection path.
 name: agent-loop
 on:
   issues:            { types: [labeled] }
-  issue_comment:     { types: [created] }
   pull_request_review_comment: { types: [created] }
-permissions: { contents: write, pull-requests: write, issues: write, id-token: write }
+permissions: { contents: write, pull-requests: write, issues: write }
 jobs:
   implement:
     if: github.event.label.name == 'agent:run'

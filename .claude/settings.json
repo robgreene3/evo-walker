@@ -2,11 +2,14 @@
   "permissions": {
     "allow": [
       "Bash(git status*)", "Bash(git diff*)", "Bash(git log*)", "Bash(git add*)", "Bash(git commit*)",
-      "Bash(git checkout*)", "Bash(git switch*)", "Bash(git push origin *)",
-      "Bash(npm run *)", "Bash(pnpm *)", "Bash(node *)", "Bash(cargo test*)", "Bash(cargo build*)"
+      "Bash(git switch -c *)", "Bash(git switch claude/*)", "Bash(git switch codex/*)", "Bash(git switch agent-contract*)",
+      "Bash(git push origin claude/*)", "Bash(git push origin codex/*)", "Bash(git push -u origin claude/*)", "Bash(git push -u origin codex/*)",
+      "Bash(npm run *)", "Bash(pnpm *)", "Bash(cargo test*)", "Bash(cargo build*)"
     ],
     "deny": [
-      "Bash(git push --force*)", "Bash(git push -f*)", "Bash(git branch -D*)", "Bash(rm -rf *)"
+      "Bash(git push origin main*)", "Bash(git push origin HEAD:main*)", "Bash(git push --force*)", "Bash(git push -f*)",
+      "Bash(git branch -D*)", "Bash(git reset --hard*)", "Bash(git checkout -- *)", "Bash(git clean*)",
+      "Bash(rm -r*)", "Bash(rm -f*)", "Bash(rm -rf*)", "Bash(sudo *)", "Bash(curl *|*sh*)"
     ]
   }
 }
